@@ -86,9 +86,9 @@
                     
                     // Load YOLOv8 model
                     try {
-                        // Using locally hosted YOLOv8 model
-                        const modelUrl = './models/yolov8/face_detection_yolov8n.onnx';
-                        console.log('Loading local YOLOv8 model...');
+                        // Using web-optimized YOLOv8 model
+                        const modelUrl = './models/yolov8/yolov8n-face-detection.onnx';
+                        console.log('Loading web-optimized YOLOv8 model...');
                         const response = await fetch(modelUrl);
                         
                         if (!response.ok) {
@@ -96,14 +96,20 @@
                         }
                         
                         const modelBuffer = await response.arrayBuffer();
-                        console.log('Model fetched, creating inference session...');
+                        console.log('Model fetched, size:', modelBuffer.byteLength, 'bytes');
                         
-                        // Create inference session with WASM backend
-                        yolov8Model = await ort.InferenceSession.create(modelBuffer, {
+                        // Create inference session with more specific options
+                        const sessionOptions = {
                             executionProviders: ['wasm'],
-                            graphOptimizationLevel: 'all'
-                        });
+                            graphOptimizationLevel: 'all',
+                            executionMode: 'sequential',
+                            enableCpuMemArena: true,
+                            enableMemPattern: true,
+                            executionPriority: 'high'
+                        };
                         
+                        console.log('Creating inference session with options:', sessionOptions);
+                        yolov8Model = await ort.InferenceSession.create(modelBuffer, sessionOptions);
                         console.log('YOLOv8 model loaded successfully');
                     } catch (yoloError) {
                         console.error('Error loading YOLOv8 model:', yoloError);
