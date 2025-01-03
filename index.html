@@ -94,13 +94,11 @@
             }
         }
 
-        // Wait for page to load before initializing
-        window.addEventListener('load', () => {
-            console.log('Page loaded, starting model initialization...');
-            loadModel().catch(error => {
-                console.error('Failed to initialize model:', error);
-                alert('Failed to load face detection model. Please try refreshing the page.');
-            });
+        // Initialize model immediately
+        console.log('Starting immediate model initialization...');
+        await loadModel().catch(error => {
+            console.error('Failed to initialize model:', error);
+            alert('Failed to load face detection model. Please try refreshing the page.');
         });
 
         const dragArea = document.querySelector('.drag-area');
