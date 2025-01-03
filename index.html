@@ -8,6 +8,11 @@
     <!-- Load face detection models -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+    <!-- Load ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <!-- Load YOLOv8 dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -26,6 +31,7 @@
                 <select id="model-select" class="block w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:border-blue-500">
                     <option value="faceapi">face-api.js (Default)</option>
                     <option value="blazeface">BlazeFace</option>
+                    <option value="yolov8">YOLOv8 (Most Accurate)</option>
                 </select>
             </div>
             <div class="drag-area bg-white p-8 rounded-lg shadow-md text-center mb-8">
@@ -59,6 +65,7 @@
         let isModelLoaded = false;
         let faceApiModel = null;
         let blazeFaceModel = null;
+        let yolov8Model = null;
         let currentModel = 'faceapi';
 
         // Initialize models
@@ -71,6 +78,10 @@
                 await tf.setBackend('webgl');
                 console.log('TensorFlow.js initialized:', tf.getBackend());
 
+                // Initialize ONNX Runtime
+                ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
+                console.log('ONNX Runtime initialized');
+
                 // Load face-api.js models with specific configuration
                 const faceDetectionNet = faceapi.nets.ssdMobilenetv1;
                 await faceDetectionNet.load('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
@@ -79,7 +90,6 @@
                 const minConfidence = 0.5;
                 const options = new faceapi.SsdMobilenetv1Options({ minConfidence });
                 faceapi.detectAllFaces = (input) => faceDetectionNet.detectFaces(input, options);
-                
                 console.log('face-api.js models loaded successfully');
 
                 // Load BlazeFace model with specific configuration
@@ -90,12 +100,80 @@
                 });
                 console.log('BlazeFace model loaded successfully');
 
+                // Load YOLOv8 model
+                try {
+                    const modelUrl = 'https://cdn.jsdelivr.net/gh/ultralytics/assets/models/v8/yolov8n-face.onnx';
+                    yolov8Model = await ort.InferenceSession.create(modelUrl);
+                    console.log('YOLOv8 model loaded successfully');
+                } catch (yoloError) {
+                    console.error('Error loading YOLOv8 model:', yoloError);
+                    // Don't throw, allow other models to work
+                }
+
                 isModelLoaded = true;
                 console.log('All face detection models loaded successfully');
             } catch (error) {
                 console.error('Error loading models:', error);
                 throw error;
             }
+        }
+
+        // YOLOv8 preprocessing function
+        async function preprocessImageForYolo(img) {
+            return tf.tidy(() => {
+                // Convert to tensor
+                const tensor = tf.browser.fromPixels(img);
+                
+                // Resize to YOLOv8 input size (640x640)
+                const resized = tf.image.resizeBilinear(tensor, [640, 640]);
+                
+                // Normalize to [0, 1]
+                const normalized = tf.div(resized, 255.0);
+                
+                // Expand dimensions to match model input shape [1, 3, 640, 640]
+                const batched = tf.transpose(normalized, [2, 0, 1]).expandDims(0);
+                
+                return batched;
+            });
+        }
+
+        // YOLOv8 detection function
+        async function detectWithYolov8(img) {
+            const tensor = await preprocessImageForYolo(img);
+            const inputTensor = new ort.Tensor('float32', tensor.dataSync(), [1, 3, 640, 640]);
+            
+            // Run inference
+            const results = await yolov8Model.run({ images: inputTensor });
+            const predictions = results.output0.data;
+            
+            // Process predictions (format: [x1, y1, x2, y2, score, class_id])
+            const detections = [];
+            const numPredictions = predictions.length / 6;
+            
+            for (let i = 0; i < numPredictions; i++) {
+                const base = i * 6;
+                const score = predictions[base + 4];
+                
+                if (score > 0.5) {  // Confidence threshold
+                    const x1 = predictions[base] * (img.width / 640);
+                    const y1 = predictions[base + 1] * (img.height / 640);
+                    const x2 = predictions[base + 2] * (img.width / 640);
+                    const y2 = predictions[base + 3] * (img.height / 640);
+                    
+                    detections.push({
+                        detection: {
+                            box: {
+                                x: x1,
+                                y: y1,
+                                width: x2 - x1,
+                                height: y2 - y1
+                            }
+                        }
+                    });
+                }
+            }
+            
+            return detections;
         }
 
         // Handle model selection change
@@ -224,6 +302,20 @@
                             }
                         } finally {
                             tensor.dispose();
+                        }
+                    } else if (currentModel === 'yolov8') {
+                        // YOLOv8 detection
+                        if (!yolov8Model) {
+                            throw new Error('YOLOv8 model not loaded. Please try another model.');
+                        }
+                        
+                        const detections = await detectWithYolov8(img);
+                        console.log('YOLOv8 detections:', detections);
+                        
+                        if (detections && detections.length > 0) {
+                            processDetections(detections, img, 'yolov8');
+                        } else {
+                            throw new Error('No faces detected in the image');
                         }
                     }
                 } catch (detectionError) {
