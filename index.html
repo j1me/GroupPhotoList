@@ -4,7 +4,7 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/face_detection.js" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
@@ -51,17 +51,30 @@
         async function loadModel() {
             try {
                 console.log('Loading MediaPipe Face Detection...');
+                
+                // Wait for MediaPipe to be loaded
+                if (typeof FaceDetection === 'undefined') {
+                    console.log('Waiting for MediaPipe to load...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    if (typeof FaceDetection === 'undefined') {
+                        throw new Error('MediaPipe Face Detection failed to load');
+                    }
+                }
+
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
+                        console.log('Loading file:', file);
                         return `https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/${file}`;
                     }
                 });
 
+                console.log('Setting up face detector options...');
                 await faceDetector.setOptions({
                     modelSelection: 1,  // Use full-range model for better group photo detection
                     minDetectionConfidence: 0.5
                 });
 
+                console.log('Initializing face detector...');
                 await faceDetector.initialize();
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
@@ -71,8 +84,14 @@
             }
         }
 
-        // Initialize model loading
-        loadModel();
+        // Wait for page to load before initializing
+        window.addEventListener('load', () => {
+            console.log('Page loaded, starting model initialization...');
+            loadModel().catch(error => {
+                console.error('Failed to initialize model:', error);
+                alert('Failed to load face detection model. Please try refreshing the page.');
+            });
+        });
 
         const dragArea = document.querySelector('.drag-area');
         const fileInput = document.getElementById('file-input');
