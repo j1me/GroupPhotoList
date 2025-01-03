@@ -102,10 +102,10 @@
                 detections = detections.map(d => ({
                     detection: {
                         box: {
-                            x: d.topLeft[0],
-                            y: d.topLeft[1],
-                            width: d.bottomRight[0] - d.topLeft[0],
-                            height: d.bottomRight[1] - d.topLeft[1]
+                            x: Math.round(d.topLeft[0]),
+                            y: Math.round(d.topLeft[1]),
+                            width: Math.round(d.bottomRight[0] - d.topLeft[0]),
+                            height: Math.round(d.bottomRight[1] - d.topLeft[1])
                         }
                     }
                 }));
@@ -193,7 +193,10 @@
                             throw new Error('No faces detected in the image');
                         }
                     } else {
-                        detections = await blazeFaceModel.estimateFaces(img, false);
+                        // Convert HTML image to tensor for BlazeFace
+                        const tensor = tf.browser.fromPixels(img);
+                        detections = await blazeFaceModel.estimateFaces(tensor, false);
+                        tensor.dispose(); // Clean up tensor memory
                         
                         if (detections.length > 0) {
                             processDetections(detections, img, 'blazeface');
