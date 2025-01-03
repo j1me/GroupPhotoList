@@ -84,8 +84,8 @@
 
                 // Load BlazeFace model with specific configuration
                 blazeFaceModel = await blazeface.load({
-                    maxFaces: 20,
-                    scoreThreshold: 0.5,
+                    maxFaces: 50,
+                    scoreThreshold: 0.3,
                     iouThreshold: 0.3
                 });
                 console.log('BlazeFace model loaded successfully');
