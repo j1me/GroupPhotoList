@@ -86,9 +86,9 @@
                     
                     // Load YOLOv8 model
                     try {
-                        // Using web-optimized YOLOv8 model
-                        const modelUrl = './models/yolov8/yolov8n-face-detection.onnx';
-                        console.log('Loading web-optimized YOLOv8 model...');
+                        // Using Microsoft's pre-optimized face detection model
+                        const modelUrl = './models/yolov8/yolov8n-face-detection-opt.onnx';
+                        console.log('Loading optimized face detection model...');
                         const response = await fetch(modelUrl);
                         
                         if (!response.ok) {
@@ -98,19 +98,14 @@
                         const modelBuffer = await response.arrayBuffer();
                         console.log('Model fetched, size:', modelBuffer.byteLength, 'bytes');
                         
-                        // Create inference session with more specific options
+                        // Create inference session with minimal options
                         const sessionOptions = {
-                            executionProviders: ['wasm'],
-                            graphOptimizationLevel: 'all',
-                            executionMode: 'sequential',
-                            enableCpuMemArena: true,
-                            enableMemPattern: true,
-                            executionPriority: 'high'
+                            executionProviders: ['wasm']
                         };
                         
-                        console.log('Creating inference session with options:', sessionOptions);
+                        console.log('Creating inference session...');
                         yolov8Model = await ort.InferenceSession.create(modelBuffer, sessionOptions);
-                        console.log('YOLOv8 model loaded successfully');
+                        console.log('Face detection model loaded successfully');
                     } catch (yoloError) {
                         console.error('Error loading YOLOv8 model:', yoloError);
                         // Add more detailed error information
