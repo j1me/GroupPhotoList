@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Photo Face Detector</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+    <!-- Use a simpler face detection library -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <style>
         .face-container {
             transition: transform 0.2s;
@@ -93,6 +95,7 @@
 
     <script>
         let isModelLoaded = false;
+        let faceDetector = null;
         const modelStatus = document.getElementById('model-status');
         const dropZone = document.querySelector('.drop-zone');
         const photoUpload = document.getElementById('photo-upload');
@@ -120,35 +123,32 @@
             }
         });
 
-        // Load face-api models
-        async function loadModels() {
+        // Initialize face detection
+        async function initFaceDetection() {
             try {
-                modelStatus.textContent = 'Loading face detection models...';
+                modelStatus.textContent = 'Loading face detection...';
                 modelStatus.classList.remove('hidden');
 
-                // Use a different model URL that's known to work
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-                
-                // Load the SSD MobileNet model instead of TinyFace detector
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
-                ]);
+                const FaceDetection = window.FaceDetection;
+                faceDetector = new FaceDetection.FaceDetector({
+                    modelSelection: 1,
+                    minDetectionConfidence: 0.5
+                });
 
                 isModelLoaded = true;
-                modelStatus.textContent = 'Models loaded successfully!';
+                modelStatus.textContent = 'Face detection ready!';
                 setTimeout(() => {
                     modelStatus.classList.add('hidden');
                 }, 2000);
             } catch (error) {
-                console.error('Error loading models:', error);
-                modelStatus.textContent = 'Failed to load models. Please refresh the page.';
-                showError('Failed to load face detection models. Please refresh and try again.');
+                console.error('Error initializing face detection:', error);
+                modelStatus.textContent = 'Failed to initialize face detection. Please refresh the page.';
+                showError('Failed to initialize face detection. Please refresh and try again.');
             }
         }
 
-        // Load models on page load
-        window.addEventListener('DOMContentLoaded', loadModels);
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initFaceDetection);
 
         function showError(message) {
             const errorMessage = document.getElementById('error-message');
@@ -163,7 +163,7 @@
             }
 
             if (!isModelLoaded) {
-                showError('Face detection models are still loading. Please wait a moment and try again.');
+                showError('Face detection is still initializing. Please wait a moment and try again.');
                 return;
             }
 
@@ -184,20 +184,19 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                // Use SSD MobileNet instead of TinyFace detector
-                const detections = await faceapi.detectAllFaces(canvas)
-                    .withFaceLandmarks();
+                // Detect faces
+                const faces = await faceDetector.detect(canvas);
 
-                if (!detections || detections.length === 0) {
+                if (!faces || faces.length === 0) {
                     showError('No faces were detected in the image. Please try a different photo.');
                     loading.classList.add('hidden');
                     return;
                 }
 
                 // Process each detected face
-                for (let i = 0; i < detections.length; i++) {
-                    const detection = detections[i];
-                    const box = detection.detection.box;
+                for (let i = 0; i < faces.length; i++) {
+                    const face = faces[i];
+                    const box = face.boundingBox;
                     
                     // Add padding
                     const padding = {
