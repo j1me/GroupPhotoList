@@ -86,10 +86,14 @@
                     
                     // Load YOLOv8 model
                     try {
-                        // Using Hugging Face model repository for reliable hosting
+                        // Using Hugging Face model with authorization
                         const modelUrl = 'https://huggingface.co/spaces/kadirnar/yolov8-face/resolve/main/yolov8n-face.onnx';
                         console.log('Fetching YOLOv8 model...');
-                        const response = await fetch(modelUrl);
+                        const response = await fetch(modelUrl, {
+                            headers: {
+                                'Authorization': 'Bearer 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'  // Replace with your token
+                            }
+                        });
                         
                         if (!response.ok) {
                             throw new Error(`Failed to fetch model: ${response.statusText}`);
