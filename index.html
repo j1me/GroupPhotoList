@@ -63,7 +63,7 @@
                 console.log('Creating FaceDetector with options...');
                 faceDetector = await FaceDetector.createFromOptions(visionWasm, {
                     baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.task",
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-tasks/face_detector/face_detection.task",
                         delegate: "CPU"
                     },
                     runningMode: "IMAGE"
