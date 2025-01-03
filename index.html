@@ -3,8 +3,9 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js" type="module"></script>
+    <!-- Load MediaPipe Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js" crossorigin="anonymous" type="module"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -43,7 +44,9 @@
     </div>
     <canvas id="temp-canvas"></canvas>
     <script type="module">
-        import { FilesetResolver, FaceDetector } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js";
+        const visionURL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js";
+        const visionModule = await import(visionURL);
+        const { FilesetResolver, FaceDetector } = visionModule;
         
         let faceDetector = null;
         let isModelLoaded = false;
@@ -54,13 +57,13 @@
                 console.log('Loading MediaPipe Face Detection...');
                 
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
                 );
                 
                 faceDetector = await FaceDetector.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.tflite",
-                        delegate: "CPU"
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.task",
+                        delegate: "GPU"
                     },
                     runningMode: "IMAGE"
                 });
