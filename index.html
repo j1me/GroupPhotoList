@@ -4,8 +4,9 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/face_detection.js" crossorigin="anonymous" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -64,7 +65,7 @@
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
                         console.log('Loading file:', file);
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/${file}`;
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
                     }
                 });
 
