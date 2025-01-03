@@ -9,9 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
     <!-- Load ONNX Runtime Web -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <!-- Load YOLOv8 dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -83,19 +81,8 @@
                 // Initialize ONNX Runtime with WASM backend
                 try {
                     // Configure ONNX Runtime
-                    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
-                    ort.env.wasm.simd = true;
-                    
-                    // Set up ONNX Runtime WASM backend paths
-                    ort.env.wasm.wasmPaths = {
-                        'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.wasm',
-                        'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.wasm',
-                        'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-threaded.wasm'
-                    };
-
-                    // Wait for ONNX Runtime to be ready
-                    await ort.ready();
-                    console.log('ONNX Runtime initialized with WASM backend');
+                    const wasmBackendPath = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
+                    console.log('Configuring ONNX Runtime...');
                     
                     // Load YOLOv8 model
                     try {
@@ -112,15 +99,11 @@
                         console.log('Model fetched, creating inference session...');
                         
                         // Create inference session with WASM backend
-                        const sessionOptions = {
+                        yolov8Model = await ort.InferenceSession.create(modelBuffer, {
                             executionProviders: ['wasm'],
-                            graphOptimizationLevel: 'all',
-                            executionMode: 'sequential',
-                            enableCpuMemArena: true,
-                            enableMemPattern: true
-                        };
+                            graphOptimizationLevel: 'all'
+                        });
                         
-                        yolov8Model = await ort.InferenceSession.create(modelBuffer, sessionOptions);
                         console.log('YOLOv8 model loaded successfully');
                     } catch (yoloError) {
                         console.error('Error loading YOLOv8 model:', yoloError);
