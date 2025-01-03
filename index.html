@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Photo Face Detector</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
     <style>
         .face-container {
             transition: transform 0.2s;
@@ -94,6 +95,11 @@
         let isModelLoaded = false;
         const modelStatus = document.getElementById('model-status');
         const dropZone = document.querySelector('.drop-zone');
+        const photoUpload = document.getElementById('photo-upload');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const facesGrid = document.getElementById('faces-grid');
+        const errorMessage = document.getElementById('error-message');
 
         // Handle drag and drop events
         dropZone.addEventListener('dragover', (e) => {
@@ -110,7 +116,7 @@
             dropZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                handleImage(files[0]);
+                processImage(files[0]);
             }
         });
 
@@ -120,11 +126,13 @@
                 modelStatus.textContent = 'Loading face detection models...';
                 modelStatus.classList.remove('hidden');
 
-                // Set the models path to a CDN that hosts the models
-                const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/weights';
-                
-                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                // Load models from CDN
+                const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
 
                 isModelLoaded = true;
                 modelStatus.textContent = 'Models loaded successfully!';
@@ -147,7 +155,7 @@
             errorMessage.classList.remove('hidden');
         }
 
-        async function handleImage(file) {
+        async function processImage(file) {
             if (!file.type.startsWith('image/')) {
                 showError('Please upload an image file.');
                 return;
@@ -165,25 +173,29 @@
             facesGrid.innerHTML = '';
 
             try {
-                const img = await faceapi.bufferToImage(file);
+                // Create an image element
+                const img = await createImageBitmap(file);
+                
+                // Create a canvas to draw the image
                 const canvas = document.getElementById('temp-canvas');
-                const displaySize = { width: img.width, height: img.height };
-                faceapi.matchDimensions(canvas, displaySize);
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
 
-                const detections = await faceapi.detectAllFaces(img)
+                // Detect faces
+                const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions())
                     .withFaceLandmarks();
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
-                if (resizedDetections.length === 0) {
+                if (!detections || detections.length === 0) {
                     showError('No faces were detected in the image. Please try a different photo.');
                     loading.classList.add('hidden');
                     return;
                 }
 
                 // Process each detected face
-                const faces = [];
-                for (let i = 0; i < resizedDetections.length; i++) {
-                    const detection = resizedDetections[i];
+                for (let i = 0; i < detections.length; i++) {
+                    const detection = detections[i];
                     const box = detection.detection.box;
                     
                     // Add padding
@@ -202,7 +214,7 @@
                     
                     // Draw the face region to the new canvas
                     faceCtx.drawImage(
-                        img,
+                        canvas,
                         Math.max(0, box.x - padding.x),
                         Math.max(0, box.y - padding.y),
                         box.width + (padding.x * 2),
@@ -213,31 +225,23 @@
                         faceCanvas.height
                     );
 
-                    // Convert canvas to data URL
-                    const faceDataUrl = faceCanvas.toDataURL('image/jpeg');
-                    faces.push({
-                        id: i,
-                        imageUrl: faceDataUrl,
-                        confidence: detection.detection.score
-                    });
-                }
-
-                // Create face cards
-                faces.forEach(face => {
+                    // Create face card
                     const faceCard = document.createElement('div');
                     faceCard.className = 'face-container bg-white rounded-lg shadow-md p-4';
                     faceCard.innerHTML = `
-                        <img src="${face.imageUrl}" alt="Detected face" class="w-full h-48 object-cover rounded-lg mb-2">
+                        <img src="${faceCanvas.toDataURL('image/jpeg')}" 
+                             alt="Detected face" 
+                             class="w-full h-48 object-cover rounded-lg mb-2">
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Face ${face.id + 1}</span>
-                            <button onclick="window.open('https://lens.google.com/uploadbyurl?url=${encodeURIComponent(face.imageUrl)}')" 
+                            <span class="text-sm text-gray-600">Face ${i + 1}</span>
+                            <button onclick="window.open('https://lens.google.com/uploadbyurl?url=${encodeURIComponent(faceCanvas.toDataURL('image/jpeg'))}')" 
                                     class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
                                 Search
                             </button>
                         </div>
                     `;
                     facesGrid.appendChild(faceCard);
-                });
+                }
 
                 // Show results
                 results.classList.remove('hidden');
@@ -249,16 +253,11 @@
             }
         }
 
-        const photoUpload = document.getElementById('photo-upload');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const facesGrid = document.getElementById('faces-grid');
-        const errorMessage = document.getElementById('error-message');
-
+        // Handle file input change
         photoUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                handleImage(file);
+                processImage(file);
             }
         });
     </script>
