@@ -5,6 +5,9 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load face-api.js -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Load TensorFlow.js and BlazeFace -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -15,6 +18,16 @@
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-center mb-8">Group Photo Face Detection</h1>
         <div class="max-w-2xl mx-auto">
+            <!-- Add model selector -->
+            <div class="mb-8">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="model-select">
+                    Select Face Detection Model
+                </label>
+                <select id="model-select" class="block w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:border-blue-500">
+                    <option value="faceapi">face-api.js (Default)</option>
+                    <option value="blazeface">BlazeFace</option>
+                </select>
+            </div>
             <div class="drag-area bg-white p-8 rounded-lg shadow-md text-center mb-8">
                 <div class="mb-4">
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,88 +57,59 @@
     <canvas id="temp-canvas"></canvas>
     <script>
         let isModelLoaded = false;
+        let faceApiModel = null;
+        let blazeFaceModel = null;
+        let currentModel = 'faceapi';
 
-        // Initialize face-api.js
+        // Initialize models
         async function loadModel() {
             try {
-                console.log('Loading face-api.js models...');
+                console.log('Loading face detection models...');
                 
+                // Load face-api.js models
                 await Promise.all([
                     faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
                     faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
                     faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/')
                 ]);
+                console.log('face-api.js models loaded successfully');
+
+                // Load BlazeFace model
+                blazeFaceModel = await blazeface.load();
+                console.log('BlazeFace model loaded successfully');
 
                 isModelLoaded = true;
-                console.log('Face detection models loaded successfully');
+                console.log('All face detection models loaded successfully');
             } catch (error) {
                 console.error('Error loading models:', error);
                 throw error;
             }
         }
 
-        // Wait for page to load before initializing
-        window.addEventListener('load', async () => {
-            console.log('Page loaded, starting model initialization...');
-            try {
-                await loadModel();
-                console.log('Models loaded successfully');
-            } catch (error) {
-                console.error('Failed to initialize models:', error);
-                alert('Failed to load face detection models. Please try refreshing the page.');
-            }
+        // Handle model selection change
+        document.getElementById('model-select').addEventListener('change', (e) => {
+            currentModel = e.target.value;
+            console.log('Switched to model:', currentModel);
         });
-
-        const dragArea = document.querySelector('.drag-area');
-        const fileInput = document.getElementById('file-input');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const originalImage = document.getElementById('original-image');
-        const facesGrid = document.getElementById('faces-grid');
-        const tempCanvas = document.getElementById('temp-canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dragArea.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dragArea.addEventListener(eventName, () => dragArea.classList.add('active'));
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dragArea.addEventListener(eventName, () => dragArea.classList.remove('active'));
-        });
-
-        dragArea.addEventListener('drop', handleDrop, false);
-        fileInput.addEventListener('change', handleFileSelect, false);
-
-        function handleDrop(e) {
-            handleFiles(e.dataTransfer.files);
-        }
-
-        function handleFileSelect(e) {
-            handleFiles(e.target.files);
-        }
-
-        async function loadImage(file) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = URL.createObjectURL(file);
-            });
-        }
 
         // Process detections and create face crops
-        function processDetections(detections, image) {
+        function processDetections(detections, image, modelType) {
             facesGrid.innerHTML = '';
             console.log('Processing detections:', detections);
+            
+            if (modelType === 'blazeface') {
+                // Convert BlazeFace detections format
+                detections = detections.map(d => ({
+                    detection: {
+                        box: {
+                            x: d.topLeft[0],
+                            y: d.topLeft[1],
+                            width: d.bottomRight[0] - d.topLeft[0],
+                            height: d.bottomRight[1] - d.topLeft[1]
+                        }
+                    }
+                }));
+            }
             
             detections.forEach((detection, index) => {
                 const box = detection.detection.box;
@@ -195,18 +179,29 @@
                 tempCanvas.height = img.height;
                 tempCtx.drawImage(img, 0, 0);
 
-                console.log('Running face detection...');
+                console.log('Running face detection with model:', currentModel);
                 try {
-                    const detections = await faceapi.detectAllFaces(img)
-                        .withFaceLandmarks()
-                        .withFaceDescriptors();
-                    
-                    console.log('Face detection completed successfully:', detections);
-                    if (detections.length > 0) {
-                        processDetections(detections, img);
+                    let detections;
+                    if (currentModel === 'faceapi') {
+                        detections = await faceapi.detectAllFaces(img)
+                            .withFaceLandmarks()
+                            .withFaceDescriptors();
+                        
+                        if (detections.length > 0) {
+                            processDetections(detections, img, 'faceapi');
+                        } else {
+                            throw new Error('No faces detected in the image');
+                        }
                     } else {
-                        throw new Error('No faces detected in the image');
+                        detections = await blazeFaceModel.estimateFaces(img, false);
+                        
+                        if (detections.length > 0) {
+                            processDetections(detections, img, 'blazeface');
+                        } else {
+                            throw new Error('No faces detected in the image');
+                        }
                     }
+                    console.log('Face detection completed successfully:', detections);
                 } catch (detectionError) {
                     console.error('Face detection error:', detectionError);
                     throw new Error(`Face detection failed: ${detectionError.message}`);
@@ -216,6 +211,64 @@
                 loading.classList.add('hidden');
                 alert('An error occurred while processing the image: ' + error.message);
             }
+        }
+
+        // Wait for page to load before initializing
+        window.addEventListener('load', async () => {
+            console.log('Page loaded, starting model initialization...');
+            try {
+                await loadModel();
+                console.log('Models loaded successfully');
+            } catch (error) {
+                console.error('Failed to initialize models:', error);
+                alert('Failed to load face detection models. Please try refreshing the page.');
+            }
+        });
+
+        const dragArea = document.querySelector('.drag-area');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const originalImage = document.getElementById('original-image');
+        const facesGrid = document.getElementById('faces-grid');
+        const tempCanvas = document.getElementById('temp-canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => dragArea.classList.add('active'));
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => dragArea.classList.remove('active'));
+        });
+
+        dragArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            handleFiles(e.dataTransfer.files);
+        }
+
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+        }
+
+        async function loadImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
         }
     </script>
 </body>
