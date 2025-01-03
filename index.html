@@ -4,7 +4,7 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js" type="module"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -42,7 +42,9 @@
         </div>
     </div>
     <canvas id="temp-canvas"></canvas>
-    <script>
+    <script type="module">
+        import { FilesetResolver, FaceDetector } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js";
+        
         let faceDetector = null;
         let isModelLoaded = false;
 
