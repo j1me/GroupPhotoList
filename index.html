@@ -65,6 +65,9 @@
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
                         console.log('Loading file:', file);
+                        if (file.endsWith('.tflite')) {
+                            return `models/face_detection/${file}`;
+                        }
                         return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
                     }
                 });
