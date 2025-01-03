@@ -54,13 +54,17 @@
                 console.log('Loading MediaPipe Face Detection...');
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
+                        // Ensure we're loading all required files from the CDN
+                        if (file.endsWith('wasm')) {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
+                        }
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
                     }
                 });
 
                 // Configure model for static image detection
                 await faceDetector.setOptions({
-                    modelSelection: 0,  // Switching to short-range model
+                    modelSelection: 0,  // Using short-range model for testing
                     minDetectionConfidence: 0.5,
                     selfieMode: false
                 });
@@ -77,6 +81,7 @@
                 console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
                 console.error('Error loading model:', error);
+                throw error; // Re-throw to see detailed error in console
             }
         }
 
