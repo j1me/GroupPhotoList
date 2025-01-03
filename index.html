@@ -3,7 +3,8 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -42,14 +43,14 @@
     </div>
     <canvas id="temp-canvas"></canvas>
     <script>
+        let model = null;
         let isModelLoaded = false;
 
-        // Load face-api models
-        Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights')
-        ]).then(() => {
+        // Load BlazeFace model
+        blazeface.load().then(loadedModel => {
+            model = loadedModel;
             isModelLoaded = true;
-            console.log('Models loaded');
+            console.log('Model loaded');
         });
 
         const dragArea = document.querySelector('.drag-area');
@@ -91,7 +92,7 @@
 
         async function handleFiles(files) {
             if (!isModelLoaded) {
-                alert('Please wait for the face detection models to load');
+                alert('Please wait for the face detection model to load');
                 return;
             }
 
@@ -107,40 +108,45 @@
             results.classList.add('hidden');
 
             try {
-                const img = await faceapi.bufferToImage(file);
+                // Create image element
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                await new Promise(resolve => img.onload = resolve);
+
+                // Display original image
                 originalImage.src = img.src;
 
-                const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions());
-
-                // Set canvas dimensions to match image
+                // Set canvas dimensions
                 tempCanvas.width = img.width;
                 tempCanvas.height = img.height;
+                tempCtx.drawImage(img, 0, 0);
 
-                // Draw the image on canvas
-                tempCtx.drawImage(img, 0, 0, img.width, img.height);
+                // Get image data for model
+                const predictions = await model.estimateFaces(img, false);
 
                 // Clear previous faces
                 facesGrid.innerHTML = '';
 
-                // Extract and display each face
-                detections.forEach((detection, index) => {
-                    const box = detection.box;
-                    const padding = 30;
+                // Process each detected face
+                predictions.forEach((prediction, index) => {
+                    const startX = prediction.topLeft[0];
+                    const startY = prediction.topLeft[1];
+                    const width = prediction.bottomRight[0] - startX;
+                    const height = prediction.bottomRight[1] - startY;
+                    const padding = Math.min(width, height) * 0.2;
 
                     // Extract face with padding
-                    const x = Math.max(0, box.x - padding);
-                    const y = Math.max(0, box.y - padding);
-                    const width = Math.min(box.width + 2 * padding, img.width - x);
-                    const height = Math.min(box.height + 2 * padding, img.height - y);
+                    const x = Math.max(0, startX - padding);
+                    const y = Math.max(0, startY - padding);
+                    const paddedWidth = Math.min(width + 2 * padding, img.width - x);
+                    const paddedHeight = Math.min(height + 2 * padding, img.height - y);
 
-                    // Create a new canvas for the face
+                    // Create face canvas
                     const faceCanvas = document.createElement('canvas');
-                    faceCanvas.width = width;
-                    faceCanvas.height = height;
+                    faceCanvas.width = paddedWidth;
+                    faceCanvas.height = paddedHeight;
                     const faceCtx = faceCanvas.getContext('2d');
-
-                    // Draw the face portion on the new canvas
-                    faceCtx.drawImage(tempCanvas, x, y, width, height, 0, 0, width, height);
+                    faceCtx.drawImage(tempCanvas, x, y, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
 
                     // Create face element
                     const faceElement = document.createElement('div');
