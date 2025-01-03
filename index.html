@@ -44,9 +44,19 @@
     </div>
     <canvas id="temp-canvas"></canvas>
     <script type="module">
+        console.log('Starting script initialization...');
         const visionURL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js";
+        console.log('Loading vision module from:', visionURL);
         const visionModule = await import(visionURL);
+        console.log('Vision module loaded:', visionModule);
+        
+        if (!visionModule.FilesetResolver || !visionModule.FaceDetector) {
+            console.error('Required exports not found in vision module:', visionModule);
+            throw new Error('MediaPipe vision module did not load correctly');
+        }
+        
         const { FilesetResolver, FaceDetector } = visionModule;
+        console.log('Extracted FilesetResolver and FaceDetector');
         
         let faceDetector = null;
         let isModelLoaded = false;
@@ -56,22 +66,30 @@
             try {
                 console.log('Loading MediaPipe Face Detection...');
                 
+                console.log('Creating FilesetResolver...');
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
                 );
+                console.log('FilesetResolver created:', vision);
+                
+                console.log('Creating FaceDetector with options...');
+                const modelPath = "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.task";
+                console.log('Using model path:', modelPath);
                 
                 faceDetector = await FaceDetector.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.task",
+                        modelAssetPath: modelPath,
                         delegate: "GPU"
                     },
                     runningMode: "IMAGE"
                 });
+                console.log('FaceDetector created:', faceDetector);
 
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
-                console.error('Error loading model:', error);
+                console.error('Detailed error in loadModel:', error);
+                console.error('Error stack:', error.stack);
                 throw error;
             }
         }
