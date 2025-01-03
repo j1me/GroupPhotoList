@@ -59,11 +59,10 @@
                 
                 faceDetector = await FaceDetector.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-tasks/face_detector/blaze_face_short.tflite",
-                        delegate: "GPU"
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/face_detection/float16/1/face_detection.tflite",
+                        delegate: "CPU"
                     },
-                    runningMode: "IMAGE",
-                    minDetectionConfidence: 0.5
+                    runningMode: "IMAGE"
                 });
 
                 isModelLoaded = true;
