@@ -3,10 +3,10 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
-    <!-- Load Blazeface -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+    <!-- Load MediaPipe Face Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -45,16 +45,35 @@
     </div>
     <canvas id="temp-canvas"></canvas>
     <script>
-        let model = null;
+        let faceDetector = null;
         let isModelLoaded = false;
 
-        // Load BlazeFace model
+        // Initialize MediaPipe Face Detection
         async function loadModel() {
             try {
-                console.log('Loading model...');
-                model = await blazeface.load();
+                console.log('Loading MediaPipe Face Detection...');
+                faceDetector = new FaceDetection({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    }
+                });
+
+                // Configure model for static image detection
+                await faceDetector.setOptions({
+                    modelSelection: 1,  // 0 for short-range, 1 for full-range
+                    minDetectionConfidence: 0.5
+                });
+
+                // Set up result handler
+                faceDetector.onResults((results) => {
+                    if (results.detections) {
+                        processDetections(results.detections);
+                    }
+                });
+
+                await faceDetector.initialize();
                 isModelLoaded = true;
-                console.log('Model loaded successfully');
+                console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
                 console.error('Error loading model:', error);
             }
@@ -109,6 +128,52 @@
             });
         }
 
+        // Process detections and create face crops
+        function processDetections(detections) {
+            facesGrid.innerHTML = '';
+            
+            detections.forEach((detection, index) => {
+                const bbox = detection.boundingBox;
+                const startX = bbox.xCenter - (bbox.width / 2);
+                const startY = bbox.yCenter - (bbox.height / 2);
+                const width = bbox.width * tempCanvas.width;
+                const height = bbox.height * tempCanvas.height;
+                
+                // Add padding around face
+                const padding = Math.min(width, height) * 0.2;
+                const x = Math.max(0, startX * tempCanvas.width - padding);
+                const y = Math.max(0, startY * tempCanvas.height - padding);
+                const paddedWidth = Math.min(width + 2 * padding, tempCanvas.width - x);
+                const paddedHeight = Math.min(height + 2 * padding, tempCanvas.height - y);
+
+                // Create face canvas
+                const faceCanvas = document.createElement('canvas');
+                faceCanvas.width = paddedWidth;
+                faceCanvas.height = paddedHeight;
+                const faceCtx = faceCanvas.getContext('2d');
+                faceCtx.drawImage(tempCanvas, x, y, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
+
+                // Create face element
+                const faceElement = document.createElement('div');
+                faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
+                
+                // Create face image with Google Lens search link
+                const faceLink = document.createElement('a');
+                faceLink.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(faceCanvas.toDataURL())}`;
+                faceLink.target = '_blank';
+                faceLink.innerHTML = `
+                    <img src="${faceCanvas.toDataURL()}" class="w-full h-48 object-cover rounded" alt="Face ${index + 1}">
+                    <p class="mt-2 text-center text-gray-600">Person ${index + 1}</p>
+                `;
+                
+                faceElement.appendChild(faceLink);
+                facesGrid.appendChild(faceElement);
+            });
+
+            loading.classList.add('hidden');
+            results.classList.remove('hidden');
+        }
+
         async function handleFiles(files) {
             if (!isModelLoaded) {
                 alert('Please wait for the face detection model to load');
@@ -140,54 +205,7 @@
                 tempCtx.drawImage(img, 0, 0);
 
                 console.log('Running face detection...');
-                const predictions = await model.estimateFaces(img);
-                console.log('Faces detected:', predictions.length);
-
-                // Clear previous faces
-                facesGrid.innerHTML = '';
-
-                // Process each detected face
-                predictions.forEach((prediction, index) => {
-                    console.log('Processing face:', index + 1);
-                    const startX = prediction.topLeft[0];
-                    const startY = prediction.topLeft[1];
-                    const width = prediction.bottomRight[0] - startX;
-                    const height = prediction.bottomRight[1] - startY;
-                    const padding = Math.min(width, height) * 0.2;
-
-                    // Extract face with padding
-                    const x = Math.max(0, startX - padding);
-                    const y = Math.max(0, startY - padding);
-                    const paddedWidth = Math.min(width + 2 * padding, img.width - x);
-                    const paddedHeight = Math.min(height + 2 * padding, img.height - y);
-
-                    // Create face canvas
-                    const faceCanvas = document.createElement('canvas');
-                    faceCanvas.width = paddedWidth;
-                    faceCanvas.height = paddedHeight;
-                    const faceCtx = faceCanvas.getContext('2d');
-                    faceCtx.drawImage(tempCanvas, x, y, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
-
-                    // Create face element
-                    const faceElement = document.createElement('div');
-                    faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
-                    
-                    // Create face image with Google Lens search link
-                    const faceLink = document.createElement('a');
-                    faceLink.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(faceCanvas.toDataURL())}`;
-                    faceLink.target = '_blank';
-                    faceLink.innerHTML = `
-                        <img src="${faceCanvas.toDataURL()}" class="w-full h-48 object-cover rounded" alt="Face ${index + 1}">
-                        <p class="mt-2 text-center text-gray-600">Person ${index + 1}</p>
-                    `;
-                    
-                    faceElement.appendChild(faceLink);
-                    facesGrid.appendChild(faceElement);
-                });
-
-                console.log('Face detection completed');
-                loading.classList.add('hidden');
-                results.classList.remove('hidden');
+                await faceDetector.send({image: img});
             } catch (error) {
                 console.error('Error processing image:', error);
                 loading.classList.add('hidden');
