@@ -1,315 +1,176 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Photo Face Detector</title>
+    <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Face Detection Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
-        .face-container {
-            transition: transform 0.2s;
-        }
-        .face-container:hover {
-            transform: scale(1.05);
-        }
-        #temp-canvas {
-            display: none;
-        }
-        #model-status {
-            position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            font-size: 0.875rem;
-            z-index: 50;
-        }
-        .drop-zone {
-            border: 2px dashed #4a90e2;
-            transition: all 0.3s ease;
-        }
-        .drop-zone.dragover {
-            background-color: rgba(74, 144, 226, 0.1);
-            border-color: #2779bd;
-        }
-        .original-image {
-            max-width: 100%;
-            max-height: 70vh;
-            width: auto;
-            height: auto;
-            margin: 0 auto;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            object-fit: contain;
-        }
-        .face-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 0.5rem;
-        }
+        .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
+        .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
+        #temp-canvas { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">Group Photo Face Detector</h1>
-        
-        <!-- Upload Section -->
-        <div class="max-w-xl mx-auto bg-white rounded-lg shadow-md p-6 mb-8">
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="photo-upload">
-                    Upload a group photo
-                </label>
-                <input type="file" 
-                       id="photo-upload" 
-                       accept="image/*"
-                       class="hidden">
-                <div class="flex items-center justify-center w-full">
-                    <label for="photo-upload" 
-                           class="drop-zone w-full flex flex-col items-center px-4 py-6 bg-white rounded-lg tracking-wide cursor-pointer hover:bg-blue-50">
-                        <svg class="w-8 h-8 text-blue-500" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z"/>
-                        </svg>
-                        <span class="mt-2 text-base text-gray-600">Drop your photo here or click to select</span>
-                    </label>
+        <h1 class="text-3xl font-bold text-center mb-8">Group Photo Face Detection</h1>
+        <div class="max-w-2xl mx-auto">
+            <div class="drag-area bg-white p-8 rounded-lg shadow-md text-center mb-8">
+                <div class="mb-4">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
                 </div>
+                <p class="text-gray-600 mb-4">Drag & Drop your group photo here or</p>
+                <input type="file" id="file-input" class="hidden" accept="image/*">
+                <button onclick="document.getElementById('file-input').click()" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition duration-300">
+                    Choose File
+                </button>
             </div>
-            <div id="loading" class="hidden">
-                <div class="flex items-center justify-center">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    <span class="ml-2">Processing image...</span>
-                </div>
+            <div id="loading" class="hidden text-center mb-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Processing image...</p>
             </div>
-        </div>
-
-        <!-- Results Section -->
-        <div id="results" class="hidden space-y-8">
-            <!-- Original Image Section -->
-            <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700">Original Photo</h2>
-                <div class="flex justify-center">
-                    <img id="original-image" class="original-image" alt="Original photo">
-                </div>
+            <div id="results" class="hidden">
+                <h2 class="text-2xl font-semibold mb-4">Original Photo</h2>
+                <img id="original-image" class="w-full rounded-lg shadow-md mb-8" src="" alt="Original photo">
+                <h2 class="text-2xl font-semibold mb-4">Detected Faces</h2>
+                <div id="faces-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
             </div>
-
-            <!-- Detected Faces Section -->
-            <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700">Detected Faces</h2>
-                <div id="faces-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <!-- Face cards will be inserted here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Error Message -->
-        <div id="error-message" class="hidden max-w-xl mx-auto mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
         </div>
     </div>
-
-    <!-- Model Status -->
-    <div id="model-status" class="hidden">
-        Loading models...
-    </div>
-
-    <!-- Hidden canvas for processing -->
     <canvas id="temp-canvas"></canvas>
-
     <script>
         let isModelLoaded = false;
-        let faceDetector = null;
-        const modelStatus = document.getElementById('model-status');
-        const dropZone = document.querySelector('.drop-zone');
-        const photoUpload = document.getElementById('photo-upload');
+
+        // Load face-api models
+        Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights')
+        ]).then(() => {
+            isModelLoaded = true;
+            console.log('Models loaded');
+        });
+
+        const dragArea = document.querySelector('.drag-area');
+        const fileInput = document.getElementById('file-input');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
-        const facesGrid = document.getElementById('faces-grid');
-        const errorMessage = document.getElementById('error-message');
         const originalImage = document.getElementById('original-image');
+        const facesGrid = document.getElementById('faces-grid');
+        const tempCanvas = document.getElementById('temp-canvas');
+        const tempCtx = tempCanvas.getContext('2d');
 
-        // Handle drag and drop events
-        dropZone.addEventListener('dragover', (e) => {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
             e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                processImage(files[0]);
-            }
-        });
-
-        // Initialize face detection
-        async function initFaceDetection() {
-            try {
-                modelStatus.textContent = 'Loading face detection...';
-                modelStatus.classList.remove('hidden');
-
-                faceDetector = new FaceDetection({locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
-                }});
-
-                faceDetector.setOptions({
-                    modelSelection: 1,
-                    minDetectionConfidence: 0.5
-                });
-
-                await faceDetector.initialize();
-
-                isModelLoaded = true;
-                modelStatus.textContent = 'Face detection ready!';
-                setTimeout(() => {
-                    modelStatus.classList.add('hidden');
-                }, 2000);
-            } catch (error) {
-                console.error('Error initializing face detection:', error);
-                modelStatus.textContent = 'Failed to initialize face detection. Please refresh the page.';
-                showError('Failed to initialize face detection. Please refresh and try again.');
-            }
+            e.stopPropagation();
         }
 
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', initFaceDetection);
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => dragArea.classList.add('active'));
+        });
 
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.remove('hidden');
+        ['dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, () => dragArea.classList.remove('active'));
+        });
+
+        dragArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            handleFiles(e.dataTransfer.files);
         }
 
-        async function processImage(file) {
-            if (!file.type.startsWith('image/')) {
-                showError('Please upload an image file.');
-                return;
-            }
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+        }
 
+        async function handleFiles(files) {
             if (!isModelLoaded) {
-                showError('Face detection is still initializing. Please wait a moment and try again.');
+                alert('Please wait for the face detection models to load');
                 return;
             }
 
-            // Show loading state
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file');
+                return;
+            }
+
             loading.classList.remove('hidden');
             results.classList.add('hidden');
-            errorMessage.classList.add('hidden');
-            facesGrid.innerHTML = '';
 
             try {
-                // Display original image
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    originalImage.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                const img = await faceapi.bufferToImage(file);
+                originalImage.src = img.src;
 
-                // Create an image element for processing
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                await new Promise((resolve) => {
-                    img.onload = resolve;
+                const detections = await faceapi.detectAllFaces(img)
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+
+                // Set canvas dimensions to match image
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+
+                // Draw the image on canvas
+                tempCtx.drawImage(img, 0, 0, img.width, img.height);
+
+                // Clear previous faces
+                facesGrid.innerHTML = '';
+
+                // Extract and display each face
+                detections.forEach((detection, index) => {
+                    const box = detection.detection.box;
+                    const padding = 30;
+
+                    // Extract face with padding
+                    const x = Math.max(0, box.x - padding);
+                    const y = Math.max(0, box.y - padding);
+                    const width = Math.min(box.width + 2 * padding, img.width - x);
+                    const height = Math.min(box.height + 2 * padding, img.height - y);
+
+                    // Create a new canvas for the face
+                    const faceCanvas = document.createElement('canvas');
+                    faceCanvas.width = width;
+                    faceCanvas.height = height;
+                    const faceCtx = faceCanvas.getContext('2d');
+
+                    // Draw the face portion on the new canvas
+                    faceCtx.drawImage(tempCanvas, x, y, width, height, 0, 0, width, height);
+
+                    // Create face element
+                    const faceElement = document.createElement('div');
+                    faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
+                    
+                    // Create face image with Google Lens search link
+                    const faceLink = document.createElement('a');
+                    faceLink.href = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(faceCanvas.toDataURL())}`;
+                    faceLink.target = '_blank';
+                    faceLink.innerHTML = `
+                        <img src="${faceCanvas.toDataURL()}" class="w-full h-48 object-cover rounded" alt="Face ${index + 1}">
+                        <p class="mt-2 text-center text-gray-600">Person ${index + 1}</p>
+                    `;
+                    
+                    faceElement.appendChild(faceLink);
+                    facesGrid.appendChild(faceElement);
                 });
 
-                // Create a canvas to draw the image
-                const canvas = document.getElementById('temp-canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                // Detect faces
-                const results = await faceDetector.send({image: canvas});
-                const faces = results.detections || [];
-
-                if (!faces || faces.length === 0) {
-                    showError('No faces were detected in the image. Please try a different photo.');
-                    loading.classList.add('hidden');
-                    results.classList.remove('hidden');  // Still show the original image
-                    return;
-                }
-
-                // Process each detected face
-                for (let i = 0; i < faces.length; i++) {
-                    const face = faces[i];
-                    const box = face.boundingBox;
-                    
-                    // Add padding
-                    const padding = {
-                        x: box.width * 0.2,
-                        y: box.height * 0.2
-                    };
-
-                    // Create a new canvas for this face
-                    const faceCanvas = document.createElement('canvas');
-                    const faceCtx = faceCanvas.getContext('2d');
-                    
-                    // Set canvas size to include padding
-                    faceCanvas.width = box.width + (padding.x * 2);
-                    faceCanvas.height = box.height + (padding.y * 2);
-                    
-                    // Draw the face region to the new canvas
-                    faceCtx.drawImage(
-                        canvas,
-                        Math.max(0, box.x - padding.x),
-                        Math.max(0, box.y - padding.y),
-                        box.width + (padding.x * 2),
-                        box.height + (padding.y * 2),
-                        0,
-                        0,
-                        faceCanvas.width,
-                        faceCanvas.height
-                    );
-
-                    // Create face card
-                    const faceCard = document.createElement('div');
-                    faceCard.className = 'face-container bg-white rounded-lg shadow-md p-4';
-                    
-                    // Get face image data URL
-                    const faceDataUrl = faceCanvas.toDataURL('image/jpeg', 0.8);
-                    
-                    faceCard.innerHTML = `
-                        <img src="${faceDataUrl}" 
-                             alt="Detected face" 
-                             class="face-image mb-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Face ${i + 1}</span>
-                            <a href="https://images.google.com/searchbyimage?image_url=${encodeURIComponent(faceDataUrl)}" 
-                               target="_blank"
-                               class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
-                                Search
-                            </a>
-                        </div>
-                    `;
-                    facesGrid.appendChild(faceCard);
-                }
-
-                // Show results
+                loading.classList.add('hidden');
                 results.classList.remove('hidden');
             } catch (error) {
                 console.error('Error:', error);
-                showError('An error occurred while processing the image. Please try again.');
-            } finally {
                 loading.classList.add('hidden');
+                alert('An error occurred while processing the image');
             }
         }
-
-        // Handle file input change
-        photoUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                processImage(file);
-            }
-        });
     </script>
 </body>
 </html>
