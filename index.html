@@ -3,8 +3,8 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -47,11 +47,19 @@
         let isModelLoaded = false;
 
         // Load BlazeFace model
-        blazeface.load().then(loadedModel => {
-            model = loadedModel;
-            isModelLoaded = true;
-            console.log('Model loaded');
-        });
+        async function loadModel() {
+            try {
+                console.log('Loading model...');
+                model = await blazeface.load();
+                isModelLoaded = true;
+                console.log('Model loaded successfully');
+            } catch (error) {
+                console.error('Error loading model:', error);
+            }
+        }
+
+        // Initialize model loading
+        loadModel();
 
         const dragArea = document.querySelector('.drag-area');
         const fileInput = document.getElementById('file-input');
@@ -90,6 +98,15 @@
             handleFiles(e.target.files);
         }
 
+        async function loadImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
         async function handleFiles(files) {
             if (!isModelLoaded) {
                 alert('Please wait for the face detection model to load');
@@ -108,10 +125,9 @@
             results.classList.add('hidden');
 
             try {
-                // Create image element
-                const img = new Image();
-                img.src = URL.createObjectURL(file);
-                await new Promise(resolve => img.onload = resolve);
+                console.log('Loading image...');
+                const img = await loadImage(file);
+                console.log('Image loaded, dimensions:', img.width, 'x', img.height);
 
                 // Display original image
                 originalImage.src = img.src;
@@ -121,14 +137,16 @@
                 tempCanvas.height = img.height;
                 tempCtx.drawImage(img, 0, 0);
 
-                // Get image data for model
-                const predictions = await model.estimateFaces(img, false);
+                console.log('Running face detection...');
+                const predictions = await model.estimateFaces(img);
+                console.log('Faces detected:', predictions.length);
 
                 // Clear previous faces
                 facesGrid.innerHTML = '';
 
                 // Process each detected face
                 predictions.forEach((prediction, index) => {
+                    console.log('Processing face:', index + 1);
                     const startX = prediction.topLeft[0];
                     const startY = prediction.topLeft[1];
                     const width = prediction.bottomRight[0] - startX;
@@ -165,12 +183,13 @@
                     facesGrid.appendChild(faceElement);
                 });
 
+                console.log('Face detection completed');
                 loading.classList.add('hidden');
                 results.classList.remove('hidden');
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error processing image:', error);
                 loading.classList.add('hidden');
-                alert('An error occurred while processing the image');
+                alert('An error occurred while processing the image: ' + error.message);
             }
         }
     </script>
