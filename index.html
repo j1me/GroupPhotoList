@@ -3,8 +3,9 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load MediaPipe Tasks Vision library -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
+    <!-- Load MediaPipe Face Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -50,17 +51,18 @@
         async function loadModel() {
             try {
                 console.log('Loading MediaPipe Face Detection...');
-                const vision = await window.vision;
-                
-                faceDetector = await vision.FaceDetector.createFromOptions({
-                    baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short/float16/1/blaze_face_short.tflite",
-                        delegate: "GPU"
-                    },
-                    runningMode: "IMAGE",
+                faceDetector = new FaceDetection({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face-detection@0.4/${file}`;
+                    }
+                });
+
+                await faceDetector.setOptions({
+                    modelSelection: 1,  // Use full-range model for better group photo detection
                     minDetectionConfidence: 0.5
                 });
-                
+
+                await faceDetector.initialize();
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
@@ -69,14 +71,8 @@
             }
         }
 
-        // Wait for the vision bundle to load before initializing
-        window.onload = () => {
-            if (window.vision) {
-                loadModel();
-            } else {
-                console.error('MediaPipe Tasks Vision bundle not loaded');
-            }
-        };
+        // Initialize model loading
+        loadModel();
 
         const dragArea = document.querySelector('.drag-area');
         const fileInput = document.getElementById('file-input');
@@ -130,11 +126,11 @@
             console.log('Processing detections:', detections);
             
             detections.forEach((detection, index) => {
-                const bbox = detection.boundingBox;
-                const x = bbox.originX;
-                const y = bbox.originY;
-                const width = bbox.width;
-                const height = bbox.height;
+                const bbox = detection.locationData.relativeBoundingBox;
+                const width = bbox.width * tempCanvas.width;
+                const height = bbox.height * tempCanvas.height;
+                const x = bbox.xMin * tempCanvas.width;
+                const y = bbox.yMin * tempCanvas.height;
                 
                 // Add padding around face
                 const padding = Math.min(width, height) * 0.2;
@@ -203,9 +199,11 @@
 
                 console.log('Running face detection...');
                 try {
-                    const detections = await faceDetector.detect(img);
-                    console.log('Face detection completed successfully:', detections);
-                    processDetections(detections.detections);
+                    const results = await faceDetector.send({image: img});
+                    console.log('Face detection completed successfully:', results);
+                    if (results.detections) {
+                        processDetections(results.detections);
+                    }
                 } catch (detectionError) {
                     console.error('Face detection error:', detectionError);
                     console.log('Face detector state:', faceDetector);
