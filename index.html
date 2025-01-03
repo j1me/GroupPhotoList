@@ -126,12 +126,13 @@
                 modelStatus.textContent = 'Loading face detection models...';
                 modelStatus.classList.remove('hidden');
 
-                // Load models from CDN
-                const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+                // Use a different model URL that's known to work
+                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                
+                // Load the SSD MobileNet model instead of TinyFace detector
                 await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
                 ]);
 
                 isModelLoaded = true;
@@ -183,8 +184,8 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                // Detect faces
-                const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions())
+                // Use SSD MobileNet instead of TinyFace detector
+                const detections = await faceapi.detectAllFaces(canvas)
                     .withFaceLandmarks();
 
                 if (!detections || detections.length === 0) {
