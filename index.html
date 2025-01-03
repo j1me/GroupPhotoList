@@ -3,7 +3,7 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -46,9 +46,7 @@
 
         // Load face-api models
         Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'),
-            faceapi.nets.faceLandmark68Net.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'),
-            faceapi.nets.faceRecognitionNet.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights')
+            faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights')
         ]).then(() => {
             isModelLoaded = true;
             console.log('Models loaded');
@@ -112,9 +110,7 @@
                 const img = await faceapi.bufferToImage(file);
                 originalImage.src = img.src;
 
-                const detections = await faceapi.detectAllFaces(img)
-                    .withFaceLandmarks()
-                    .withFaceDescriptors();
+                const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions());
 
                 // Set canvas dimensions to match image
                 tempCanvas.width = img.width;
@@ -128,7 +124,7 @@
 
                 // Extract and display each face
                 detections.forEach((detection, index) => {
-                    const box = detection.detection.box;
+                    const box = detection.box;
                     const padding = 30;
 
                     // Extract face with padding
