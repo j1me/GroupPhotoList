@@ -80,43 +80,18 @@
 
                 // Initialize ONNX Runtime with WASM backend
                 try {
-                    // Configure ONNX Runtime
-                    const wasmBackendPath = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-                    console.log('Configuring ONNX Runtime...');
+                    // Using the same model as Microsoft's demo
+                    const modelUrl = './models/face-detection-retail-0004.onnx';
+                    console.log('Loading face detection model...');
                     
-                    // Load YOLOv8 model
-                    try {
-                        // Using Microsoft's pre-optimized face detection model
-                        const modelUrl = './models/yolov8/yolov8n-face-detection-opt.onnx';
-                        console.log('Loading optimized face detection model...');
-                        const response = await fetch(modelUrl);
-                        
-                        if (!response.ok) {
-                            throw new Error(`Failed to load local model: ${response.statusText}`);
-                        }
-                        
-                        const modelBuffer = await response.arrayBuffer();
-                        console.log('Model fetched, size:', modelBuffer.byteLength, 'bytes');
-                        
-                        // Create inference session with minimal options
-                        const sessionOptions = {
-                            executionProviders: ['wasm']
-                        };
-                        
-                        console.log('Creating inference session...');
-                        yolov8Model = await ort.InferenceSession.create(modelBuffer, sessionOptions);
-                        console.log('Face detection model loaded successfully');
-                    } catch (yoloError) {
-                        console.error('Error loading YOLOv8 model:', yoloError);
-                        // Add more detailed error information
-                        if (yoloError.response) {
-                            console.error('Response status:', yoloError.response.status);
-                            console.error('Response text:', await yoloError.response.text());
-                        }
-                        // Don't throw, allow other models to work
-                    }
-                } catch (yoloError) {
-                    console.error('Error loading YOLOv8 model:', yoloError);
+                    // Initialize ONNX Runtime Web with specific configuration
+                    const session = await ort.InferenceSession.create(modelUrl);
+                    
+                    // Store the session
+                    yolov8Model = session;
+                    console.log('Face detection model loaded successfully');
+                } catch (error) {
+                    console.error('Error initializing ONNX Runtime:', error);
                     // Don't throw, allow other models to work
                 }
 
