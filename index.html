@@ -4,7 +4,7 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/face_detection.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
@@ -54,14 +54,15 @@
                 console.log('Loading MediaPipe Face Detection...');
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
                     }
                 });
 
                 // Configure model for static image detection
                 await faceDetector.setOptions({
                     modelSelection: 1,  // 0 for short-range, 1 for full-range
-                    minDetectionConfidence: 0.5
+                    minDetectionConfidence: 0.5,
+                    selfieMode: false
                 });
 
                 // Set up result handler
@@ -131,6 +132,7 @@
         // Process detections and create face crops
         function processDetections(detections) {
             facesGrid.innerHTML = '';
+            console.log('Processing detections:', detections);
             
             detections.forEach((detection, index) => {
                 const bbox = detection.boundingBox;
