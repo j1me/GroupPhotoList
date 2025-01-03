@@ -97,20 +97,6 @@
             facesGrid.innerHTML = '';
             console.log('Processing detections:', detections);
             
-            if (modelType === 'blazeface') {
-                // Convert BlazeFace detections format
-                detections = detections.map(d => ({
-                    detection: {
-                        box: {
-                            x: Math.round(d.topLeft[0]),
-                            y: Math.round(d.topLeft[1]),
-                            width: Math.round(d.bottomRight[0] - d.topLeft[0]),
-                            height: Math.round(d.bottomRight[1] - d.topLeft[1])
-                        }
-                    }
-                }));
-            }
-            
             detections.forEach((detection, index) => {
                 const box = detection.detection.box;
                 
@@ -183,6 +169,7 @@
                 try {
                     let detections;
                     if (currentModel === 'faceapi') {
+                        // face-api.js detection
                         detections = await faceapi.detectAllFaces(img)
                             .withFaceLandmarks()
                             .withFaceDescriptors();
@@ -192,14 +179,25 @@
                         } else {
                             throw new Error('No faces detected in the image');
                         }
-                    } else {
-                        // Convert HTML image to tensor for BlazeFace
+                    } else if (currentModel === 'blazeface') {
+                        // BlazeFace detection
                         const tensor = tf.browser.fromPixels(img);
                         detections = await blazeFaceModel.estimateFaces(tensor, false);
                         tensor.dispose(); // Clean up tensor memory
                         
-                        if (detections.length > 0) {
-                            processDetections(detections, img, 'blazeface');
+                        if (detections && detections.length > 0) {
+                            // Convert BlazeFace format to match face-api.js format
+                            const convertedDetections = detections.map(d => ({
+                                detection: {
+                                    box: {
+                                        x: Math.round(d.topLeft[0]),
+                                        y: Math.round(d.topLeft[1]),
+                                        width: Math.round(d.bottomRight[0] - d.topLeft[0]),
+                                        height: Math.round(d.bottomRight[1] - d.topLeft[1])
+                                    }
+                                }
+                            }));
+                            processDetections(convertedDetections, img, 'blazeface');
                         } else {
                             throw new Error('No faces detected in the image');
                         }
