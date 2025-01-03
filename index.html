@@ -4,7 +4,7 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Tasks Vision library -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -50,11 +50,9 @@
         async function loadModel() {
             try {
                 console.log('Loading MediaPipe Face Detection...');
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                );
+                const vision = await window.vision;
                 
-                faceDetector = await FaceDetector.createFromOptions(vision, {
+                faceDetector = await vision.FaceDetector.createFromOptions({
                     baseOptions: {
                         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short/float16/1/blaze_face_short.tflite",
                         delegate: "GPU"
@@ -71,8 +69,14 @@
             }
         }
 
-        // Initialize model loading
-        loadModel();
+        // Wait for the vision bundle to load before initializing
+        window.onload = () => {
+            if (window.vision) {
+                loadModel();
+            } else {
+                console.error('MediaPipe Tasks Vision bundle not loaded');
+            }
+        };
 
         const dragArea = document.querySelector('.drag-area');
         const fileInput = document.getElementById('file-input');
