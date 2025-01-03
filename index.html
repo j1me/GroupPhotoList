@@ -52,24 +52,21 @@
         async function loadModel() {
             try {
                 console.log('Loading MediaPipe Face Detection...');
-                const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                    ? '' 
-                    : '/GroupPhotoList';
-
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
-                        // For WASM files and binary files, use CDN
-                        if (file.endsWith('wasm') || file.endsWith('.js') || file.endsWith('.binarypb')) {
+                        // For WASM and JS files, use CDN
+                        if (file.endsWith('.wasm') || file.endsWith('.js') || file.endsWith('.binarypb')) {
                             return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
                         }
-                        // For model files, use local path with base URL
-                        return `${baseUrl}/third_party/mediapipe/modules/face_detection/${file}`;
+                        // For model files (.tflite), use local path
+                        console.log('Loading model file:', file);
+                        return `third_party/mediapipe/modules/face_detection/${file}`;
                     }
                 });
 
                 // Configure model for static image detection
                 await faceDetector.setOptions({
-                    modelSelection: 1,  // Using full-range model for better accuracy
+                    modelSelection: 0,  // Try short-range model first for testing
                     minDetectionConfidence: 0.5,
                     selfieMode: false
                 });
