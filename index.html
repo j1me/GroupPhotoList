@@ -54,30 +54,31 @@
                 console.log('Loading MediaPipe Face Detection...');
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
-                        // For WASM and JS files, use CDN
-                        if (file.endsWith('.wasm') || file.endsWith('.js') || file.endsWith('.binarypb')) {
-                            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
-                        }
-                        // For model files (.tflite), use local path
-                        console.log('Loading model file:', file);
-                        return `third_party/mediapipe/modules/face_detection/${file}`;
+                        // All files (including .tflite) should come from the CDN
+                        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
+                        console.log('Loading file:', file, 'from URL:', url);
+                        return url;
                     }
                 });
 
+                console.log('Setting up face detector options...');
                 // Configure model for static image detection
                 await faceDetector.setOptions({
-                    modelSelection: 0,  // Try short-range model first for testing
+                    modelSelection: 1,  // Use full-range model for better group photo detection
                     minDetectionConfidence: 0.5,
                     selfieMode: false
                 });
+                console.log('Face detector options set successfully');
 
                 // Set up result handler
                 faceDetector.onResults((results) => {
+                    console.log('Got detection results:', results);
                     if (results.detections) {
                         processDetections(results.detections);
                     }
                 });
 
+                console.log('Initializing face detector...');
                 await faceDetector.initialize();
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
@@ -214,7 +215,14 @@
                 tempCtx.drawImage(img, 0, 0);
 
                 console.log('Running face detection...');
-                await faceDetector.send({image: img});
+                try {
+                    await faceDetector.send({image: img});
+                    console.log('Face detection completed successfully');
+                } catch (detectionError) {
+                    console.error('Face detection error:', detectionError);
+                    console.log('Face detector state:', faceDetector);
+                    throw new Error(`Face detection failed: ${detectionError.message}`);
+                }
             } catch (error) {
                 console.error('Error processing image:', error);
                 loading.classList.add('hidden');
