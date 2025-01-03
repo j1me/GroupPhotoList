@@ -198,34 +198,23 @@
                     } else if (currentModel === 'blazeface') {
                         // BlazeFace detection
                         const tensor = tf.tidy(() => {
-                            // Convert image to tensor
-                            const imageTensor = tf.browser.fromPixels(img);
-                            
-                            // Normalize to [0, 1]
-                            const normalized = tf.div(imageTensor, 255);
-                            
-                            // Resize to expected input size
-                            const resized = tf.image.resizeBilinear(normalized, [128, 128]);
-                            
-                            // Add batch dimension
-                            return tf.expandDims(resized, 0);
+                            // Convert image to tensor (returns a tensor of shape [height, width, 3])
+                            return tf.browser.fromPixels(img);
                         });
                         
                         try {
+                            // BlazeFace handles preprocessing internally
                             const predictions = await blazeFaceModel.estimateFaces(tensor, false);
                             console.log('BlazeFace raw predictions:', predictions);
                             
                             if (predictions && predictions.length > 0) {
-                                // Convert coordinates back to original image size
-                                const scaleX = img.width / 128;
-                                const scaleY = img.height / 128;
                                 const convertedDetections = predictions.map(pred => ({
                                     detection: {
                                         box: {
-                                            x: Math.round(pred.topLeft[0] * scaleX),
-                                            y: Math.round(pred.topLeft[1] * scaleY),
-                                            width: Math.round((pred.bottomRight[0] - pred.topLeft[0]) * scaleX),
-                                            height: Math.round((pred.bottomRight[1] - pred.topLeft[1]) * scaleY)
+                                            x: pred.topLeft[0],
+                                            y: pred.topLeft[1],
+                                            width: pred.bottomRight[0] - pred.topLeft[0],
+                                            height: pred.bottomRight[1] - pred.topLeft[1]
                                         }
                                     }
                                 }));
