@@ -3,11 +3,11 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load face-api.js -->
+    <!-- Load TensorFlow.js first -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <!-- Load face detection models -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <!-- Load TensorFlow.js and BlazeFace -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -66,6 +66,10 @@
             try {
                 console.log('Loading face detection models...');
                 
+                // Set up TensorFlow.js backend
+                await tf.setBackend('webgl');
+                console.log('TensorFlow.js backend initialized:', tf.getBackend());
+                
                 // Load face-api.js models
                 await Promise.all([
                     faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
@@ -75,7 +79,13 @@
                 console.log('face-api.js models loaded successfully');
 
                 // Load BlazeFace model
-                blazeFaceModel = await blazeface.load();
+                blazeFaceModel = await blazeface.load({
+                    maxFaces: 10,
+                    inputWidth: 128,
+                    inputHeight: 128,
+                    iouThreshold: 0.3,
+                    scoreThreshold: 0.75
+                });
                 console.log('BlazeFace model loaded successfully');
 
                 isModelLoaded = true;
@@ -181,25 +191,39 @@
                         }
                     } else if (currentModel === 'blazeface') {
                         // BlazeFace detection
-                        const tensor = tf.browser.fromPixels(img);
-                        detections = await blazeFaceModel.estimateFaces(tensor, false);
-                        tensor.dispose(); // Clean up tensor memory
+                        const tensor = tf.tidy(() => {
+                            // Convert image to tensor and normalize
+                            const imageTensor = tf.browser.fromPixels(img);
+                            // Resize if needed (BlazeFace expects 128x128)
+                            const resized = tf.image.resizeBilinear(imageTensor, [128, 128]);
+                            // Normalize to [-1, 1]
+                            return resized.toFloat().div(127.5).sub(1);
+                        });
                         
-                        if (detections && detections.length > 0) {
-                            // Convert BlazeFace format to match face-api.js format
-                            const convertedDetections = detections.map(d => ({
-                                detection: {
-                                    box: {
-                                        x: Math.round(d.topLeft[0]),
-                                        y: Math.round(d.topLeft[1]),
-                                        width: Math.round(d.bottomRight[0] - d.topLeft[0]),
-                                        height: Math.round(d.bottomRight[1] - d.topLeft[1])
+                        try {
+                            detections = await blazeFaceModel.estimateFaces(tensor, false);
+                            console.log('BlazeFace detections:', detections);
+                            
+                            if (detections && detections.length > 0) {
+                                // Convert BlazeFace format to match face-api.js format
+                                const convertedDetections = detections.map(d => ({
+                                    detection: {
+                                        box: {
+                                            // Scale coordinates back to original image size
+                                            x: Math.round(d.topLeft[0] * (img.width / 128)),
+                                            y: Math.round(d.topLeft[1] * (img.height / 128)),
+                                            width: Math.round((d.bottomRight[0] - d.topLeft[0]) * (img.width / 128)),
+                                            height: Math.round((d.bottomRight[1] - d.topLeft[1]) * (img.height / 128))
+                                        }
                                     }
-                                }
-                            }));
-                            processDetections(convertedDetections, img, 'blazeface');
-                        } else {
-                            throw new Error('No faces detected in the image');
+                                }));
+                                processDetections(convertedDetections, img, 'blazeface');
+                            } else {
+                                throw new Error('No faces detected in the image');
+                            }
+                        } finally {
+                            // Clean up tensor memory
+                            tensor.dispose();
                         }
                     }
                     console.log('Face detection completed successfully:', detections);
