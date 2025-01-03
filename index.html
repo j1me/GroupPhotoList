@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Group Photo Face Detector</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Use a simpler face detection library -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <!-- Face Detection Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
         .face-container {
             transition: transform 0.2s;
@@ -37,6 +37,22 @@
         .drop-zone.dragover {
             background-color: rgba(74, 144, 226, 0.1);
             border-color: #2779bd;
+        }
+        .original-image {
+            max-width: 100%;
+            max-height: 70vh;
+            width: auto;
+            height: auto;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            object-fit: contain;
+        }
+        .face-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 0.5rem;
         }
     </style>
 </head>
@@ -73,10 +89,21 @@
         </div>
 
         <!-- Results Section -->
-        <div id="results" class="hidden">
-            <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700">Detected Faces</h2>
-            <div id="faces-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <!-- Face cards will be inserted here -->
+        <div id="results" class="hidden space-y-8">
+            <!-- Original Image Section -->
+            <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700">Original Photo</h2>
+                <div class="flex justify-center">
+                    <img id="original-image" class="original-image" alt="Original photo">
+                </div>
+            </div>
+
+            <!-- Detected Faces Section -->
+            <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700">Detected Faces</h2>
+                <div id="faces-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Face cards will be inserted here -->
+                </div>
             </div>
         </div>
 
@@ -103,6 +130,7 @@
         const results = document.getElementById('results');
         const facesGrid = document.getElementById('faces-grid');
         const errorMessage = document.getElementById('error-message');
+        const originalImage = document.getElementById('original-image');
 
         // Handle drag and drop events
         dropZone.addEventListener('dragover', (e) => {
@@ -129,11 +157,16 @@
                 modelStatus.textContent = 'Loading face detection...';
                 modelStatus.classList.remove('hidden');
 
-                const FaceDetection = window.FaceDetection;
-                faceDetector = new FaceDetection.FaceDetector({
+                faceDetector = new FaceDetection({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                }});
+
+                faceDetector.setOptions({
                     modelSelection: 1,
                     minDetectionConfidence: 0.5
                 });
+
+                await faceDetector.initialize();
 
                 isModelLoaded = true;
                 modelStatus.textContent = 'Face detection ready!';
@@ -151,7 +184,6 @@
         window.addEventListener('DOMContentLoaded', initFaceDetection);
 
         function showError(message) {
-            const errorMessage = document.getElementById('error-message');
             errorMessage.textContent = message;
             errorMessage.classList.remove('hidden');
         }
@@ -174,9 +206,20 @@
             facesGrid.innerHTML = '';
 
             try {
-                // Create an image element
-                const img = await createImageBitmap(file);
-                
+                // Display original image
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    originalImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+
+                // Create an image element for processing
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                });
+
                 // Create a canvas to draw the image
                 const canvas = document.getElementById('temp-canvas');
                 canvas.width = img.width;
@@ -185,11 +228,13 @@
                 ctx.drawImage(img, 0, 0);
 
                 // Detect faces
-                const faces = await faceDetector.detect(canvas);
+                const results = await faceDetector.send({image: canvas});
+                const faces = results.detections || [];
 
                 if (!faces || faces.length === 0) {
                     showError('No faces were detected in the image. Please try a different photo.');
                     loading.classList.add('hidden');
+                    results.classList.remove('hidden');  // Still show the original image
                     return;
                 }
 
@@ -228,16 +273,21 @@
                     // Create face card
                     const faceCard = document.createElement('div');
                     faceCard.className = 'face-container bg-white rounded-lg shadow-md p-4';
+                    
+                    // Get face image data URL
+                    const faceDataUrl = faceCanvas.toDataURL('image/jpeg', 0.8);
+                    
                     faceCard.innerHTML = `
-                        <img src="${faceCanvas.toDataURL('image/jpeg')}" 
+                        <img src="${faceDataUrl}" 
                              alt="Detected face" 
-                             class="w-full h-48 object-cover rounded-lg mb-2">
+                             class="face-image mb-2">
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-600">Face ${i + 1}</span>
-                            <button onclick="window.open('https://lens.google.com/uploadbyurl?url=${encodeURIComponent(faceCanvas.toDataURL('image/jpeg'))}')" 
-                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
+                            <a href="https://images.google.com/searchbyimage?image_url=${encodeURIComponent(faceDataUrl)}" 
+                               target="_blank"
+                               class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
                                 Search
-                            </button>
+                            </a>
                         </div>
                     `;
                     facesGrid.appendChild(faceCard);
