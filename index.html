@@ -82,29 +82,65 @@
 
                 // Initialize ONNX Runtime with WASM backend
                 try {
-                    // Set up ONNX Runtime WASM backend
-                    ort.env.wasm.wasmPaths = {
+                    // Configure ONNX Runtime
+                    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+                    ort.env.wasm.simd = true;
+                    
+                    // Set up ONNX Runtime WASM backend with version-specific paths
+                    const wasmPaths = {
                         'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.wasm',
                         'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.wasm',
                         'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-threaded.wasm'
                     };
                     
-                    // Create ONNX Runtime WebAssembly instance
-                    await ort.ready();
-                    console.log('ONNX Runtime initialized');
-                    
-                    // Load YOLOv8 model
-                    const modelUrl = 'https://raw.githubusercontent.com/ultralytics/assets/main/models/v8/yolov8n-face.onnx';
-                    const response = await fetch(modelUrl);
-                    const modelBuffer = await response.arrayBuffer();
-                    
-                    // Create inference session with WASM backend
-                    yolov8Model = await ort.InferenceSession.create(modelBuffer, {
+                    // Initialize ONNX Runtime with configuration
+                    await ort.initializeRuntime({
+                        loggingLevel: 1,
+                        wasmPaths,
                         executionProviders: ['wasm'],
-                        graphOptimizationLevel: 'all'
+                        graphOptimizationLevel: 'all',
+                        executionMode: 'parallel',
+                        enableCpuMemArena: true,
+                        enableMemPattern: true
                     });
                     
-                    console.log('YOLOv8 model loaded successfully');
+                    await ort.ready();
+                    console.log('ONNX Runtime initialized with WASM backend');
+                    
+                    // Load YOLOv8 model
+                    try {
+                        // Using Hugging Face model repository for reliable hosting
+                        const modelUrl = 'https://huggingface.co/spaces/kadirnar/yolov8-face/resolve/main/yolov8n-face.onnx';
+                        console.log('Fetching YOLOv8 model...');
+                        const response = await fetch(modelUrl);
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch model: ${response.statusText}`);
+                        }
+                        
+                        const modelBuffer = await response.arrayBuffer();
+                        console.log('Model fetched, creating inference session...');
+                        
+                        // Create inference session with WASM backend and threading
+                        yolov8Model = await ort.InferenceSession.create(modelBuffer, {
+                            executionProviders: ['wasm'],
+                            graphOptimizationLevel: 'all',
+                            executionMode: 'parallel',
+                            enableCpuMemArena: true,
+                            enableMemPattern: true,
+                            wasmPaths: ort.env.wasm.wasmPaths
+                        });
+                        
+                        console.log('YOLOv8 model loaded successfully');
+                    } catch (yoloError) {
+                        console.error('Error loading YOLOv8 model:', yoloError);
+                        // Add more detailed error information
+                        if (yoloError.response) {
+                            console.error('Response status:', yoloError.response.status);
+                            console.error('Response text:', await yoloError.response.text());
+                        }
+                        // Don't throw, allow other models to work
+                    }
                 } catch (yoloError) {
                     console.error('Error loading YOLOv8 model:', yoloError);
                     // Don't throw, allow other models to work
