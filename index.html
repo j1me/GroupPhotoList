@@ -3,10 +3,8 @@
 <head>
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/face_detection.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- Load MediaPipe Tasks Vision library -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -52,34 +50,19 @@
         async function loadModel() {
             try {
                 console.log('Loading MediaPipe Face Detection...');
-                faceDetector = new FaceDetection({
-                    locateFile: (file) => {
-                        // All files (including .tflite) should come from the CDN
-                        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
-                        console.log('Loading file:', file, 'from URL:', url);
-                        return url;
-                    }
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
+                
+                faceDetector = await FaceDetector.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short/float16/1/blaze_face_short.tflite",
+                        delegate: "GPU"
+                    },
+                    runningMode: "IMAGE",
+                    minDetectionConfidence: 0.5
                 });
-
-                console.log('Setting up face detector options...');
-                // Configure model for static image detection
-                await faceDetector.setOptions({
-                    modelSelection: 1,  // Use full-range model for better group photo detection
-                    minDetectionConfidence: 0.5,
-                    selfieMode: false
-                });
-                console.log('Face detector options set successfully');
-
-                // Set up result handler
-                faceDetector.onResults((results) => {
-                    console.log('Got detection results:', results);
-                    if (results.detections) {
-                        processDetections(results.detections);
-                    }
-                });
-
-                console.log('Initializing face detector...');
-                await faceDetector.initialize();
+                
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
@@ -144,24 +127,24 @@
             
             detections.forEach((detection, index) => {
                 const bbox = detection.boundingBox;
-                const startX = bbox.xCenter - (bbox.width / 2);
-                const startY = bbox.yCenter - (bbox.height / 2);
-                const width = bbox.width * tempCanvas.width;
-                const height = bbox.height * tempCanvas.height;
+                const x = bbox.originX;
+                const y = bbox.originY;
+                const width = bbox.width;
+                const height = bbox.height;
                 
                 // Add padding around face
                 const padding = Math.min(width, height) * 0.2;
-                const x = Math.max(0, startX * tempCanvas.width - padding);
-                const y = Math.max(0, startY * tempCanvas.height - padding);
-                const paddedWidth = Math.min(width + 2 * padding, tempCanvas.width - x);
-                const paddedHeight = Math.min(height + 2 * padding, tempCanvas.height - y);
+                const paddedX = Math.max(0, x - padding);
+                const paddedY = Math.max(0, y - padding);
+                const paddedWidth = Math.min(width + 2 * padding, tempCanvas.width - paddedX);
+                const paddedHeight = Math.min(height + 2 * padding, tempCanvas.height - paddedY);
 
                 // Create face canvas
                 const faceCanvas = document.createElement('canvas');
                 faceCanvas.width = paddedWidth;
                 faceCanvas.height = paddedHeight;
                 const faceCtx = faceCanvas.getContext('2d');
-                faceCtx.drawImage(tempCanvas, x, y, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
+                faceCtx.drawImage(tempCanvas, paddedX, paddedY, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
 
                 // Create face element
                 const faceElement = document.createElement('div');
@@ -216,8 +199,9 @@
 
                 console.log('Running face detection...');
                 try {
-                    await faceDetector.send({image: img});
-                    console.log('Face detection completed successfully');
+                    const detections = await faceDetector.detect(img);
+                    console.log('Face detection completed successfully:', detections);
+                    processDetections(detections.detections);
                 } catch (detectionError) {
                     console.error('Face detection error:', detectionError);
                     console.log('Face detector state:', faceDetector);
