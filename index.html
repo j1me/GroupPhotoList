@@ -4,9 +4,7 @@
     <title>Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Load MediaPipe Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js" crossorigin="anonymous"></script>
     <style>
         .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
         .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
@@ -53,33 +51,19 @@
             try {
                 console.log('Loading MediaPipe Face Detection...');
                 
-                // Wait for MediaPipe to be loaded
-                if (typeof FaceDetection === 'undefined') {
-                    console.log('Waiting for MediaPipe to load...');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    if (typeof FaceDetection === 'undefined') {
-                        throw new Error('MediaPipe Face Detection failed to load');
-                    }
-                }
-
-                faceDetector = new FaceDetection({
-                    locateFile: (file) => {
-                        console.log('Loading file:', file);
-                        if (file.endsWith('.tflite')) {
-                            return `models/face_detection/${file}`;
-                        }
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
-                    }
-                });
-
-                console.log('Setting up face detector options...');
-                await faceDetector.setOptions({
-                    modelSelection: 1,  // Use full-range model for better group photo detection
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+                );
+                
+                faceDetector = await FaceDetector.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short/float16/1/blaze_face_short.tflite",
+                        delegate: "GPU"
+                    },
+                    runningMode: "IMAGE",
                     minDetectionConfidence: 0.5
                 });
 
-                console.log('Initializing face detector...');
-                await faceDetector.initialize();
                 isModelLoaded = true;
                 console.log('MediaPipe Face Detection loaded successfully');
             } catch (error) {
@@ -149,11 +133,11 @@
             console.log('Processing detections:', detections);
             
             detections.forEach((detection, index) => {
-                const bbox = detection.locationData.relativeBoundingBox;
-                const width = bbox.width * tempCanvas.width;
-                const height = bbox.height * tempCanvas.height;
-                const x = bbox.xMin * tempCanvas.width;
-                const y = bbox.yMin * tempCanvas.height;
+                const bbox = detection.boundingBox;
+                const width = bbox.width;
+                const height = bbox.height;
+                const x = bbox.originX;
+                const y = bbox.originY;
                 
                 // Add padding around face
                 const padding = Math.min(width, height) * 0.2;
@@ -222,10 +206,10 @@
 
                 console.log('Running face detection...');
                 try {
-                    const results = await faceDetector.send({image: img});
-                    console.log('Face detection completed successfully:', results);
-                    if (results.detections) {
-                        processDetections(results.detections);
+                    const detections = await faceDetector.detect(img);
+                    console.log('Face detection completed successfully:', detections);
+                    if (detections.detections) {
+                        processDetections(detections.detections);
                     }
                 } catch (detectionError) {
                     console.error('Face detection error:', detectionError);
