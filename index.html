@@ -54,13 +54,16 @@
                 console.log('Loading MediaPipe Face Detection...');
                 faceDetector = new FaceDetection({
                     locateFile: (file) => {
-                        // Load WASM files from CDN, model files from local
+                        // Map the internal MediaPipe paths to our local paths
+                        if (file === 'third_party/mediapipe/modules/face_detection/face_detection_short_range.tflite') {
+                            return 'models/face_detection/face_detection_short_range.tflite';
+                        }
+                        if (file === 'third_party/mediapipe/modules/face_detection/face_detection_full_range.tflite') {
+                            return 'models/face_detection/face_detection_full_range.tflite';
+                        }
+                        // For WASM files, use CDN
                         if (file.endsWith('wasm')) {
                             return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.4/${file}`;
-                        }
-                        if (file.endsWith('.tflite')) {
-                            // Use local model files
-                            return `models/face_detection/${file}`;
                         }
                         return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
                     }
