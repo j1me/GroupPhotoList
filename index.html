@@ -86,17 +86,13 @@
                     
                     // Load YOLOv8 model
                     try {
-                        // Using a different YOLOv8 face detection model
-                        const modelUrl = 'https://huggingface.co/spaces/Xenova/yolov8-web/resolve/main/face_detection_yolov8n.onnx';
-                        console.log('Fetching YOLOv8 model...');
-                        const response = await fetch(modelUrl, {
-                            headers: {
-                                'Authorization': 'Bearer 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'
-                            }
-                        });
+                        // Using locally hosted YOLOv8 model
+                        const modelUrl = './models/yolov8/face_detection_yolov8n.onnx';
+                        console.log('Loading local YOLOv8 model...');
+                        const response = await fetch(modelUrl);
                         
                         if (!response.ok) {
-                            throw new Error(`Failed to fetch model: ${response.statusText}`);
+                            throw new Error(`Failed to load local model: ${response.statusText}`);
                         }
                         
                         const modelBuffer = await response.arrayBuffer();
