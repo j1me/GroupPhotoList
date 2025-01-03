@@ -9,7 +9,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
     <!-- Load ONNX Runtime Web -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.min.js"></script>
     <!-- Load YOLOv8 dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -78,9 +80,35 @@
                 await tf.setBackend('webgl');
                 console.log('TensorFlow.js initialized:', tf.getBackend());
 
-                // Initialize ONNX Runtime
-                ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-                console.log('ONNX Runtime initialized');
+                // Initialize ONNX Runtime with WASM backend
+                try {
+                    // Set up ONNX Runtime WASM backend
+                    ort.env.wasm.wasmPaths = {
+                        'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.wasm',
+                        'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.wasm',
+                        'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-threaded.wasm'
+                    };
+                    
+                    // Create ONNX Runtime WebAssembly instance
+                    await ort.ready();
+                    console.log('ONNX Runtime initialized');
+                    
+                    // Load YOLOv8 model
+                    const modelUrl = 'https://raw.githubusercontent.com/ultralytics/assets/main/models/v8/yolov8n-face.onnx';
+                    const response = await fetch(modelUrl);
+                    const modelBuffer = await response.arrayBuffer();
+                    
+                    // Create inference session with WASM backend
+                    yolov8Model = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    
+                    console.log('YOLOv8 model loaded successfully');
+                } catch (yoloError) {
+                    console.error('Error loading YOLOv8 model:', yoloError);
+                    // Don't throw, allow other models to work
+                }
 
                 // Load face-api.js models with specific configuration
                 const faceDetectionNet = faceapi.nets.ssdMobilenetv1;
@@ -100,16 +128,6 @@
                 });
                 console.log('BlazeFace model loaded successfully');
 
-                // Load YOLOv8 model
-                try {
-                    const modelUrl = 'https://cdn.jsdelivr.net/gh/ultralytics/assets/models/v8/yolov8n-face.onnx';
-                    yolov8Model = await ort.InferenceSession.create(modelUrl);
-                    console.log('YOLOv8 model loaded successfully');
-                } catch (yoloError) {
-                    console.error('Error loading YOLOv8 model:', yoloError);
-                    // Don't throw, allow other models to work
-                }
-
                 isModelLoaded = true;
                 console.log('All face detection models loaded successfully');
             } catch (error) {
@@ -124,56 +142,100 @@
                 // Convert to tensor
                 const tensor = tf.browser.fromPixels(img);
                 
-                // Resize to YOLOv8 input size (640x640)
-                const resized = tf.image.resizeBilinear(tensor, [640, 640]);
+                // Resize maintaining aspect ratio
+                const [height, width] = tensor.shape.slice(0, 2);
+                const maxSize = 640;
+                const scale = maxSize / Math.max(height, width);
+                const newHeight = Math.round(height * scale);
+                const newWidth = Math.round(width * scale);
+                
+                const resized = tf.image.resizeBilinear(tensor, [newHeight, newWidth]);
+                
+                // Pad to square
+                const padHeight = maxSize - newHeight;
+                const padWidth = maxSize - newWidth;
+                const padded = tf.pad(resized, [
+                    [0, padHeight],
+                    [0, padWidth],
+                    [0, 0]
+                ]);
                 
                 // Normalize to [0, 1]
-                const normalized = tf.div(resized, 255.0);
+                const normalized = tf.div(padded, 255.0);
                 
-                // Expand dimensions to match model input shape [1, 3, 640, 640]
-                const batched = tf.transpose(normalized, [2, 0, 1]).expandDims(0);
-                
-                return batched;
+                // Transpose to [N, C, H, W] format
+                return tf.transpose(normalized.expandDims(0), [0, 3, 1, 2]);
             });
         }
 
         // YOLOv8 detection function
         async function detectWithYolov8(img) {
-            const tensor = await preprocessImageForYolo(img);
-            const inputTensor = new ort.Tensor('float32', tensor.dataSync(), [1, 3, 640, 640]);
-            
-            // Run inference
-            const results = await yolov8Model.run({ images: inputTensor });
-            const predictions = results.output0.data;
-            
-            // Process predictions (format: [x1, y1, x2, y2, score, class_id])
-            const detections = [];
-            const numPredictions = predictions.length / 6;
-            
-            for (let i = 0; i < numPredictions; i++) {
-                const base = i * 6;
-                const score = predictions[base + 4];
-                
-                if (score > 0.5) {  // Confidence threshold
-                    const x1 = predictions[base] * (img.width / 640);
-                    const y1 = predictions[base + 1] * (img.height / 640);
-                    const x2 = predictions[base + 2] * (img.width / 640);
-                    const y2 = predictions[base + 3] * (img.height / 640);
-                    
-                    detections.push({
-                        detection: {
-                            box: {
-                                x: x1,
-                                y: y1,
-                                width: x2 - x1,
-                                height: y2 - y1
-                            }
-                        }
-                    });
-                }
+            if (!yolov8Model) {
+                throw new Error('YOLOv8 model not loaded. Please try another model.');
             }
-            
-            return detections;
+
+            const tensor = await preprocessImageForYolo(img);
+            const inputTensor = new ort.Tensor(
+                'float32',
+                tensor.dataSync(),
+                [1, 3, 640, 640]
+            );
+
+            try {
+                // Run inference
+                const feeds = { images: inputTensor };
+                const results = await yolov8Model.run(feeds);
+                const output = results.output0;  // Shape: [num_boxes, 6] (x1, y1, x2, y2, score, class)
+                
+                // Post-process detections
+                const detections = [];
+                const numBoxes = output.dims[0];
+                const data = output.data;
+                
+                for (let i = 0; i < numBoxes; i++) {
+                    const base = i * 6;
+                    const confidence = data[base + 4];
+                    
+                    if (confidence > 0.25) {  // Confidence threshold
+                        // Get coordinates (normalized)
+                        let [x1, y1, x2, y2] = data.slice(base, base + 4);
+                        
+                        // Denormalize coordinates to original image size
+                        const scale = Math.min(640 / img.width, 640 / img.height);
+                        const padX = (640 - img.width * scale) / 2;
+                        const padY = (640 - img.height * scale) / 2;
+                        
+                        x1 = (x1 - padX) / scale;
+                        y1 = (y1 - padY) / scale;
+                        x2 = (x2 - padX) / scale;
+                        y2 = (y2 - padY) / scale;
+                        
+                        // Ensure coordinates are within image bounds
+                        x1 = Math.max(0, Math.min(img.width, x1));
+                        y1 = Math.max(0, Math.min(img.height, y1));
+                        x2 = Math.max(0, Math.min(img.width, x2));
+                        y2 = Math.max(0, Math.min(img.height, y2));
+                        
+                        detections.push({
+                            detection: {
+                                box: {
+                                    x: x1,
+                                    y: y1,
+                                    width: x2 - x1,
+                                    height: y2 - y1
+                                },
+                                score: confidence
+                            }
+                        });
+                    }
+                }
+                
+                console.log(`YOLOv8 found ${detections.length} faces`);
+                return detections;
+            } finally {
+                // Clean up tensors
+                tensor.dispose();
+            }
         }
 
         // Handle model selection change
