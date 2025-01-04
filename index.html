@@ -73,7 +73,7 @@
             try {
                 console.log('Initializing ONNX Runtime...');
                 
-                // Set WASM paths before calling ready()
+                // Configure WASM paths and options
                 ort.env.wasm = {
                     wasmPaths: {
                         'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.12.0/dist/ort-wasm.wasm',
@@ -84,8 +84,6 @@
                     simd: true
                 };
                 
-                // Wait for ONNX Runtime initialization
-                await ort.ready();
                 console.log('ONNX Runtime initialized with WASM config:', ort.env.wasm);
                 return true;
             } catch (error) {
