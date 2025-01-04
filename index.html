@@ -8,8 +8,8 @@
     <!-- Load face detection models -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-    <!-- Load ONNX Runtime Web -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <!-- Load ONNX Runtime Web with specific version -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
     <!-- Load YOLOv8 dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -68,7 +68,59 @@
         let yolov8Model = null;
         let currentModel = 'faceapi';
 
-        // Initialize models
+        // Initialize ONNX Runtime with WASM backend
+        async function initOnnxRuntime() {
+            try {
+                // Wait for ONNX Runtime to be ready
+                console.log('Waiting for ONNX Runtime to be ready...');
+                await ort.ready();
+                
+                // Configure WASM
+                const wasmConfig = {
+                    executionProviders: ['wasm'],
+                    wasmPaths: {
+                        'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm.wasm',
+                        'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-simd.wasm',
+                        'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort-wasm-threaded.wasm'
+                    }
+                };
+                
+                // Set WASM configuration
+                ort.env.wasm = wasmConfig;
+                console.log('ONNX Runtime initialized with WASM config:', wasmConfig);
+                
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize ONNX Runtime:', error);
+                throw error;
+            }
+        }
+        
+        // Load YOLOv8 model
+        async function loadYoloModel() {
+            try {
+                console.log('Loading YOLOv8 model...');
+                const modelUrl = './models/face-detection-retail-0004.onnx';
+                
+                // Create session with specific options
+                const sessionOptions = {
+                    executionProviders: ['wasm'],
+                    graphOptimizationLevel: 'all',
+                    enableCpuMemArena: true,
+                    enableMemPattern: true
+                };
+                
+                // Create inference session
+                const session = await ort.InferenceSession.create(modelUrl, sessionOptions);
+                console.log('YOLOv8 model loaded successfully');
+                return session;
+            } catch (error) {
+                console.error('Failed to load YOLOv8 model:', error);
+                throw error;
+            }
+        }
+        
+        // Update loadModel function
         async function loadModel() {
             try {
                 console.log('Loading face detection models...');
@@ -77,35 +129,11 @@
                 await tf.ready();
                 await tf.setBackend('webgl');
                 console.log('TensorFlow.js initialized:', tf.getBackend());
-
-                // Initialize ONNX Runtime with WASM backend
+                
+                // Initialize ONNX Runtime and load YOLOv8
                 try {
-                    // Set up ONNX Runtime Web WASM backend
-                    const wasmPaths = {
-                        'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm.wasm',
-                        'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm-simd.wasm',
-                        'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm-threaded.wasm'
-                    };
-                    
-                    ort.env.wasm.wasmPaths = wasmPaths;
-                    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
-                    ort.env.wasm.simd = true;
-                    
-                    console.log('Initializing ONNX Runtime Web...');
-                    
-                    // Using Microsoft's face detection model
-                    const modelUrl = './models/face-detection-retail-0004.onnx';
-                    console.log('Loading face detection model...');
-                    
-                    // Create inference session with specific configuration
-                    const session = await ort.InferenceSession.create(modelUrl, {
-                        executionProviders: ['wasm'],
-                        graphOptimizationLevel: 'all'
-                    });
-                    
-                    // Store the session
-                    yolov8Model = session;
-                    console.log('Face detection model loaded successfully');
+                    await initOnnxRuntime();
+                    yolov8Model = await loadYoloModel();
                 } catch (error) {
                     console.error('Error initializing ONNX Runtime:', error);
                     // Don't throw, allow other models to work
