@@ -95,8 +95,18 @@
         // Load YOLOv8 model
         async function loadYoloModel() {
             try {
-                console.log('Loading YOLOv8 model...');
-                const modelUrl = './models/face-detection-retail-0004.onnx';
+                console.log('Loading face detection model...');
+                const modelUrl = 'https://github.com/microsoft/onnxruntime-web-demo/releases/download/v1.0.0/face-detection-retail-0004.onnx';
+                
+                // Fetch model first to verify it's accessible
+                console.log('Fetching model from:', modelUrl);
+                const response = await fetch(modelUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch model: ${response.statusText}`);
+                }
+                
+                const modelBuffer = await response.arrayBuffer();
+                console.log('Model fetched successfully, size:', modelBuffer.byteLength, 'bytes');
                 
                 // Create session with v1.12.0 specific options
                 const sessionOptions = {
@@ -108,12 +118,16 @@
                 };
                 
                 // Create inference session
-                console.log('Creating inference session...');
-                const session = await ort.InferenceSession.create(modelUrl, sessionOptions);
-                console.log('YOLOv8 model loaded successfully');
+                console.log('Creating inference session with options:', sessionOptions);
+                const session = await ort.InferenceSession.create(modelBuffer, sessionOptions);
+                console.log('Face detection model loaded successfully');
                 return session;
             } catch (error) {
-                console.error('Failed to load YOLOv8 model:', error);
+                console.error('Detailed error in model loading:', error);
+                if (error.response) {
+                    console.error('Response status:', error.response.status);
+                    console.error('Response text:', await error.response.text());
+                }
                 throw error;
             }
         }
