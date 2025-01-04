@@ -80,12 +80,28 @@
 
                 // Initialize ONNX Runtime with WASM backend
                 try {
-                    // Using the same model as Microsoft's demo
+                    // Set up ONNX Runtime Web WASM backend
+                    const wasmPaths = {
+                        'ort-wasm.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm.wasm',
+                        'ort-wasm-simd.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm-simd.wasm',
+                        'ort-wasm-threaded.wasm': 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort-wasm-threaded.wasm'
+                    };
+                    
+                    ort.env.wasm.wasmPaths = wasmPaths;
+                    ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+                    ort.env.wasm.simd = true;
+                    
+                    console.log('Initializing ONNX Runtime Web...');
+                    
+                    // Using Microsoft's face detection model
                     const modelUrl = './models/face-detection-retail-0004.onnx';
                     console.log('Loading face detection model...');
                     
-                    // Initialize ONNX Runtime Web with specific configuration
-                    const session = await ort.InferenceSession.create(modelUrl);
+                    // Create inference session with specific configuration
+                    const session = await ort.InferenceSession.create(modelUrl, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
                     
                     // Store the session
                     yolov8Model = session;
