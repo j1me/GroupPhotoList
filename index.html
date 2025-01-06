@@ -27,9 +27,8 @@
                     Select Face Detection Model
                 </label>
                 <select id="model-select" class="block w-full px-4 py-2 rounded border border-gray-300 focus:outline-none focus:border-blue-500">
-                    <option value="faceapi">face-api.js (Default)</option>
-                    <option value="blazeface">BlazeFace</option>
-                    <option value="yolov8">YOLOv8 (Most Accurate)</option>
+                    <option value="faceapi">face-api.js (Most Accurate)</option>
+                    <option value="blazeface">BlazeFace (Faster)</option>
                 </select>
             </div>
             <div class="drag-area bg-white p-8 rounded-lg shadow-md text-center mb-8">
@@ -63,29 +62,9 @@
         let isModelLoaded = false;
         let faceApiModel = null;
         let blazeFaceModel = null;
-        let yolov8Model = null;
         let currentModel = 'faceapi';
         let currentImage = null; // Store the current image
 
-        // Load YOLOv8 model (now using TensorFlow.js)
-        async function loadYoloModel() {
-            try {
-                console.log('Loading face detection model...');
-                // Using TensorFlow.js model URL (we'll use BlazeFace as an alternative since it's already optimized for web)
-                const model = await blazeface.load({
-                    maxFaces: 50,
-                    scoreThreshold: 0.5,  // Increased threshold for better accuracy
-                    iouThreshold: 0.3
-                });
-                
-                console.log('Face detection model loaded successfully');
-                return model;
-            } catch (error) {
-                console.error('Detailed error in model loading:', error);
-                throw error;
-            }
-        }
-        
         // Update loadModel function
         async function loadModel() {
             try {
@@ -95,14 +74,6 @@
                 await tf.ready();
                 await tf.setBackend('webgl');
                 console.log('TensorFlow.js initialized:', tf.getBackend());
-                
-                // Load YOLOv8 (now using TensorFlow.js)
-                try {
-                    yolov8Model = await loadYoloModel();
-                } catch (error) {
-                    console.error('Error loading YOLOv8 model:', error);
-                    // Don't throw, allow other models to work
-                }
 
                 // Load face-api.js models
                 const faceDetectionNet = faceapi.nets.ssdMobilenetv1;
@@ -129,79 +100,6 @@
                 throw error;
             }
         }
-
-        // YOLOv8 preprocessing function
-        async function preprocessImageForYolo(img) {
-            return tf.tidy(() => {
-                // Convert to tensor
-                const tensor = tf.browser.fromPixels(img);
-                // Normalize to [0, 1]
-                const normalized = tf.div(tensor, 255.0);
-                // Resize to model input size
-                return tf.image.resizeBilinear(normalized, [384, 384]);
-            });
-        }
-
-        // YOLOv8 detection function (now using TensorFlow.js)
-        async function detectWithYolov8(img) {
-            if (!yolov8Model) {
-                throw new Error('YOLOv8 model not loaded. Please try another model.');
-            }
-
-            let tensor = null;
-            try {
-                // Since we're using BlazeFace as our YOLOv8 replacement
-                const predictions = await yolov8Model.estimateFaces(img, false);
-                console.log('YOLOv8 (BlazeFace) predictions:', predictions);
-                
-                if (predictions && predictions.length > 0) {
-                    // Convert BlazeFace format to match our expected format
-                    return predictions.map(pred => ({
-                        detection: {
-                            box: {
-                                x: pred.topLeft[0],
-                                y: pred.topLeft[1],
-                                width: pred.bottomRight[0] - pred.topLeft[0],
-                                height: pred.bottomRight[1] - pred.topLeft[1]
-                            },
-                            score: pred.probability[0]
-                        }
-                    }));
-                }
-                return [];
-            } catch (error) {
-                console.error('Error in face detection:', error);
-                throw new Error(`Face detection failed: ${error.message}`);
-            } finally {
-                // Clean up tensors
-                if (tensor) {
-                    tensor.dispose();
-                }
-            }
-        }
-
-        // Handle model selection change
-        document.getElementById('model-select').addEventListener('change', async (e) => {
-            currentModel = e.target.value;
-            console.log('Switched to model:', currentModel);
-            
-            // If there's an image loaded, rerun detection with new model
-            if (currentImage) {
-                loading.classList.remove('hidden');
-                results.classList.add('hidden');
-                
-                try {
-                    console.log('Rerunning detection with new model...');
-                    await processImage(currentImage);
-                } catch (error) {
-                    console.error('Error processing image with new model:', error);
-                    alert('An error occurred while processing the image with the new model');
-                } finally {
-                    loading.classList.add('hidden');
-                    results.classList.remove('hidden');
-                }
-            }
-        });
 
         // Process image with current model
         async function processImage(img) {
@@ -234,8 +132,6 @@
                             }
                         }
                     }));
-                } else if (currentModel === 'yolov8') {
-                    detections = await detectWithYolov8(img);
                 }
 
                 if (!detections || detections.length === 0) {
