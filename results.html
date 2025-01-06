@@ -465,7 +465,7 @@
         // Add the new dance party function
         async function generateDanceParty() {
             try {
-                const faces = document.querySelectorAll('.face-name-input');
+                const faces = document.querySelectorAll('#faces-grid .bg-white');
                 if (faces.length === 0) return;
 
                 // Create loading indicator
@@ -477,17 +477,27 @@
                 `;
                 document.getElementById('disco-grid').appendChild(loadingDiv);
 
-                // Load dancer silhouettes
+                // Define dancer poses with proper SVG paths
                 const dancerPoses = [
-                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0xMCA0MGwtNSAzMCAyMCAyMC0xNSA0MCAyMCAzMGgtNjBsMjAtMzAtMTUtNDAgMjAtMjAtNS0zMGgyMHoiIGZpbGw9IiMwMDAiLz48L3N2Zz4=',
-                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0wIDIwbC0yMCA2MCAyMCAyMC00MCAyMGg4MGwtNDAtMjAgMjAtMjAtMjAtNjB6IiBmaWxsPSIjMDAwIi8+PC9zdmc+',
-                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0tMjAgNDBsMjAgMjAgMjAtMjB2NDBsLTIwIDQwLTIwLTQweiIgZmlsbD0iIzAwMCIvPjwvc3ZnPg=='
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-10 20v80l10 30 10-30V60h-20zm-5 80l-15 40h50l-15-40h-20z" fill="currentColor"/></svg>`,
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-20 30l20-10 20 10v60l-20 40-20-40V70z" fill="currentColor"/></svg>`,
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm0 20L30 80l20 20-20 40h40l-20-40 20-20-20-20z" fill="currentColor"/></svg>`
                 ];
 
                 const frames = [];
                 const frameCount = 20;
                 const canvasWidth = 800;
                 const canvasHeight = 600;
+
+                // Load all face images first
+                const faceImages = await Promise.all(Array.from(faces).map(face => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = face.querySelector('img').src;
+                    });
+                }));
 
                 // Create frames
                 for (let i = 0; i < frameCount; i++) {
@@ -496,13 +506,38 @@
                     canvas.height = canvasHeight;
                     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-                    // Draw disco background
-                    ctx.fillStyle = `hsl(${i * 18}, 70%, 20%)`;
+                    // Draw disco floor
+                    const gradient = ctx.createLinearGradient(0, canvasHeight/2, 0, canvasHeight);
+                    gradient.addColorStop(0, `hsl(${i * 18}, 70%, 20%)`);
+                    gradient.addColorStop(1, `hsl(${i * 18}, 70%, 10%)`);
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    // Draw grid lines for disco floor
+                    ctx.strokeStyle = `hsla(${i * 18}, 70%, 40%, 0.3)`;
+                    ctx.lineWidth = 2;
+                    for (let x = 0; x < canvasWidth; x += 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, canvasHeight/2);
+                        ctx.lineTo(x + canvasWidth/2, canvasHeight);
+                        ctx.stroke();
+                    }
+
+                    // Draw disco ball
+                    const ballX = canvasWidth/2;
+                    const ballY = 80;
+                    const ballRadius = 30;
+
+                    // Draw disco ball glow
+                    const ballGlow = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, ballRadius * 2);
+                    ballGlow.addColorStop(0, `hsla(${i * 18}, 70%, 60%, 0.3)`);
+                    ballGlow.addColorStop(1, 'transparent');
+                    ctx.fillStyle = ballGlow;
                     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
                     // Draw disco ball
                     ctx.beginPath();
-                    ctx.arc(canvasWidth/2, 50, 30, 0, Math.PI * 2);
+                    ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
                     ctx.fillStyle = '#fff';
                     ctx.fill();
                     
@@ -510,41 +545,52 @@
                     for (let beam = 0; beam < 8; beam++) {
                         const angle = (beam * Math.PI / 4) + (i * Math.PI / 10);
                         ctx.beginPath();
-                        ctx.moveTo(canvasWidth/2, 50);
+                        ctx.moveTo(ballX, ballY);
                         ctx.lineTo(
-                            canvasWidth/2 + Math.cos(angle) * canvasWidth,
-                            50 + Math.sin(angle) * canvasHeight
+                            ballX + Math.cos(angle) * canvasWidth,
+                            ballY + Math.sin(angle) * canvasHeight
                         );
-                        ctx.strokeStyle = `hsla(${i * 18 + beam * 45}, 70%, 60%, 0.3)`;
-                        ctx.lineWidth = 20;
+                        ctx.strokeStyle = `hsla(${i * 18 + beam * 45}, 70%, 60%, 0.2)`;
+                        ctx.lineWidth = 30;
                         ctx.stroke();
                     }
 
                     // Draw dancers with faces
-                    faces.forEach((face, index) => {
-                        const faceImg = face.parentElement.parentElement.querySelector('img');
+                    faceImages.forEach((faceImg, index) => {
                         const dancerPose = dancerPoses[i % dancerPoses.length];
-                        const dancerImg = new Image();
-                        dancerImg.src = dancerPose;
-
-                        // Calculate dancer position
-                        const spacing = canvasWidth / (faces.length + 1);
+                        
+                        // Calculate dancer position with more dynamic movement
+                        const spacing = canvasWidth / (faceImages.length + 1);
                         const x = spacing * (index + 1);
-                        const y = 200 + Math.sin(i * Math.PI / 5 + index) * 20;
+                        const baseY = 350;
+                        const bounce = Math.sin(i * Math.PI / 5 + index) * 20;
+                        const sway = Math.sin(i * Math.PI / 7 + index * Math.PI / 3) * 15;
+                        const y = baseY + bounce;
+
+                        // Create temporary canvas for dancer
+                        const dancerCanvas = document.createElement('canvas');
+                        dancerCanvas.width = 100;
+                        dancerCanvas.height = 200;
+                        const dancerCtx = dancerCanvas.getContext('2d');
 
                         // Draw dancer body
-                        ctx.save();
-                        ctx.translate(x, y);
-                        ctx.scale(0.8, 0.8);
-                        ctx.fillStyle = `hsl(${index * 360/faces.length}, 70%, 50%)`;
-                        ctx.fill(new Path2D(dancerPose));
-                        ctx.restore();
+                        dancerCtx.fillStyle = `hsl(${index * 360/faceImages.length}, 70%, 50%)`;
+                        const parser = new DOMParser();
+                        const svgDoc = parser.parseFromString(dancerPoses[i % dancerPoses.length], 'image/svg+xml');
+                        const pathData = svgDoc.querySelector('path').getAttribute('d');
+                        const path = new Path2D(pathData);
+                        dancerCtx.fill(path);
 
                         // Draw face
-                        const faceSize = 60;
+                        const faceSize = 40;
+                        dancerCtx.drawImage(faceImg, 30, 0, faceSize, faceSize);
+
+                        // Draw complete dancer on main canvas
                         ctx.save();
-                        ctx.translate(x - faceSize/2, y - 80);
-                        ctx.drawImage(faceImg, 0, 0, faceSize, faceSize);
+                        ctx.translate(x + sway, y);
+                        ctx.scale(1.2, 1.2);
+                        ctx.translate(-50, -100);
+                        ctx.drawImage(dancerCanvas, 0, 0);
                         ctx.restore();
                     });
 
