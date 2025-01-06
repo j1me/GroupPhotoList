@@ -210,7 +210,18 @@
                 let detections;
                 
                 if (currentModel === 'faceapi') {
-                    detections = await faceapi.detectAllFaces(img);
+                    const faceDetections = await faceapi.detectAllFaces(img);
+                    console.log('Raw face-api.js detections:', faceDetections);
+                    detections = faceDetections.map(det => ({
+                        detection: {
+                            box: {
+                                x: det._box._x,
+                                y: det._box._y,
+                                width: det._box._width,
+                                height: det._box._height
+                            }
+                        }
+                    }));
                 } else if (currentModel === 'blazeface') {
                     const predictions = await blazeFaceModel.estimateFaces(img, false);
                     detections = predictions.map(pred => ({
