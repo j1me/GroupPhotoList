@@ -477,6 +477,21 @@
                 `;
                 document.getElementById('disco-grid').appendChild(loadingDiv);
 
+                // Load all face images first
+                const faceImages = await Promise.all(Array.from(faces).map(face => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        const faceImg = face.querySelector('img[alt^="Face"]');
+                        if (!faceImg) {
+                            reject(new Error('Face image not found'));
+                            return;
+                        }
+                        img.src = faceImg.src;
+                    });
+                }));
+
                 // Define dancer poses with proper SVG paths
                 const dancerPoses = [
                     `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-10 20v80l10 30 10-30V60h-20zm-5 80l-15 40h50l-15-40h-20z" fill="currentColor"/></svg>`,
@@ -488,16 +503,6 @@
                 const frameCount = 20;
                 const canvasWidth = 800;
                 const canvasHeight = 600;
-
-                // Load all face images first
-                const faceImages = await Promise.all(Array.from(faces).map(face => {
-                    return new Promise((resolve, reject) => {
-                        const img = new Image();
-                        img.onload = () => resolve(img);
-                        img.onerror = reject;
-                        img.src = face.querySelector('img').src;
-                    });
-                }));
 
                 // Create frames
                 for (let i = 0; i < frameCount; i++) {
