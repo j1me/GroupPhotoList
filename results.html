@@ -454,6 +454,165 @@
             localStorage.removeItem('originalImage');
             localStorage.removeItem('faces');
         });
+
+        // Add a "Dance Party" button to the main results area
+        const dancePartyButton = document.createElement('button');
+        dancePartyButton.className = 'ml-4 bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300';
+        dancePartyButton.innerHTML = '💃 Dance Party';
+        dancePartyButton.onclick = generateDanceParty;
+        document.querySelector('#results .flex.justify-between').appendChild(dancePartyButton);
+
+        // Add the new dance party function
+        async function generateDanceParty() {
+            try {
+                const faces = document.querySelectorAll('.face-name-input');
+                if (faces.length === 0) return;
+
+                // Create loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'text-center p-4';
+                loadingDiv.innerHTML = `
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-2"></div>
+                    <p class="text-sm text-gray-600">Creating dance party...</p>
+                `;
+                document.getElementById('disco-grid').appendChild(loadingDiv);
+
+                // Load dancer silhouettes
+                const dancerPoses = [
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0xMCA0MGwtNSAzMCAyMCAyMC0xNSA0MCAyMCAzMGgtNjBsMjAtMzAtMTUtNDAgMjAtMjAtNS0zMGgyMHoiIGZpbGw9IiMwMDAiLz48L3N2Zz4=',
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0wIDIwbC0yMCA2MCAyMCAyMC00MCAyMGg4MGwtNDAtMjAgMjAtMjAtMjAtNjB6IiBmaWxsPSIjMDAwIi8+PC9zdmc+',
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDEwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTUwIDQwYzExIDAgMjAtOSAyMC0yMFM2MSAwIDUwIDAgMzAgOSAzMCAyMHM5IDIwIDIwIDIwem0tMjAgNDBsMjAgMjAgMjAtMjB2NDBsLTIwIDQwLTIwLTQweiIgZmlsbD0iIzAwMCIvPjwvc3ZnPg=='
+                ];
+
+                const frames = [];
+                const frameCount = 20;
+                const canvasWidth = 800;
+                const canvasHeight = 600;
+
+                // Create frames
+                for (let i = 0; i < frameCount; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                    // Draw disco background
+                    ctx.fillStyle = `hsl(${i * 18}, 70%, 20%)`;
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    // Draw disco ball
+                    ctx.beginPath();
+                    ctx.arc(canvasWidth/2, 50, 30, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                    
+                    // Draw light beams
+                    for (let beam = 0; beam < 8; beam++) {
+                        const angle = (beam * Math.PI / 4) + (i * Math.PI / 10);
+                        ctx.beginPath();
+                        ctx.moveTo(canvasWidth/2, 50);
+                        ctx.lineTo(
+                            canvasWidth/2 + Math.cos(angle) * canvasWidth,
+                            50 + Math.sin(angle) * canvasHeight
+                        );
+                        ctx.strokeStyle = `hsla(${i * 18 + beam * 45}, 70%, 60%, 0.3)`;
+                        ctx.lineWidth = 20;
+                        ctx.stroke();
+                    }
+
+                    // Draw dancers with faces
+                    faces.forEach((face, index) => {
+                        const faceImg = face.parentElement.parentElement.querySelector('img');
+                        const dancerPose = dancerPoses[i % dancerPoses.length];
+                        const dancerImg = new Image();
+                        dancerImg.src = dancerPose;
+
+                        // Calculate dancer position
+                        const spacing = canvasWidth / (faces.length + 1);
+                        const x = spacing * (index + 1);
+                        const y = 200 + Math.sin(i * Math.PI / 5 + index) * 20;
+
+                        // Draw dancer body
+                        ctx.save();
+                        ctx.translate(x, y);
+                        ctx.scale(0.8, 0.8);
+                        ctx.fillStyle = `hsl(${index * 360/faces.length}, 70%, 50%)`;
+                        ctx.fill(new Path2D(dancerPose));
+                        ctx.restore();
+
+                        // Draw face
+                        const faceSize = 60;
+                        ctx.save();
+                        ctx.translate(x - faceSize/2, y - 80);
+                        ctx.drawImage(faceImg, 0, 0, faceSize, faceSize);
+                        ctx.restore();
+                    });
+
+                    frames.push(canvas.toDataURL());
+                }
+
+                // Create preview
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'mt-8 bg-white p-4 rounded-lg shadow-md';
+                previewContainer.style.width = '100%';
+
+                const previewTitle = document.createElement('h3');
+                previewTitle.className = 'text-xl font-semibold text-gray-800 mb-4';
+                previewTitle.textContent = '🪩 Dance Party';
+                previewContainer.appendChild(previewTitle);
+
+                const previewCanvas = document.createElement('canvas');
+                previewCanvas.width = canvasWidth;
+                previewCanvas.height = canvasHeight;
+                previewCanvas.className = 'w-full rounded-lg';
+                previewContainer.appendChild(previewCanvas);
+
+                const downloadButton = document.createElement('button');
+                downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
+                downloadButton.innerHTML = 'Download Dance Party';
+                downloadButton.onclick = () => {
+                    const zip = new JSZip();
+                    frames.forEach((frame, i) => {
+                        const base64Data = frame.replace(/^data:image\/png;base64,/, '');
+                        zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
+                    });
+                    
+                    zip.generateAsync({ type: 'blob' }).then(blob => {
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = 'dance-party-frames.zip';
+                        link.click();
+                    });
+                };
+                previewContainer.appendChild(downloadButton);
+
+                // Animate preview
+                let currentFrame = 0;
+                const ctx = previewCanvas.getContext('2d');
+                const animate = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                        ctx.drawImage(img, 0, 0);
+                        currentFrame = (currentFrame + 1) % frames.length;
+                        setTimeout(() => requestAnimationFrame(animate), 100);
+                    };
+                    img.src = frames[currentFrame];
+                };
+                animate();
+
+                // Show preview
+                const discoSection = document.getElementById('disco-section');
+                const discoGrid = document.getElementById('disco-grid');
+                discoGrid.innerHTML = '';
+                discoGrid.appendChild(previewContainer);
+                discoSection.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Error generating dance party:', error);
+                alert('Error creating dance party. Please try again.');
+            }
+        }
     </script>
 </body>
 </html> 
