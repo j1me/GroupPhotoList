@@ -159,7 +159,7 @@
 
         // Process detections and create face crops
         function processDetections(detections, image) {
-            facesGrid.innerHTML = '';
+            const faces = [];
             
             detections.forEach((detection, index) => {
                 const box = detection.detection.box;
@@ -177,34 +177,17 @@
                 faceCanvas.height = paddedHeight;
                 const faceCtx = faceCanvas.getContext('2d');
                 faceCtx.drawImage(image, paddedX, paddedY, paddedWidth, paddedHeight, 0, 0, paddedWidth, paddedHeight);
-
-                // Create face element
-                const faceElement = document.createElement('div');
-                faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
                 
-                // Create face image with download button
-                const faceImage = document.createElement('img');
-                faceImage.src = faceCanvas.toDataURL();
-                faceImage.className = 'w-full h-48 object-cover rounded';
-                faceImage.alt = `Face ${index + 1}`;
-
-                const downloadButton = document.createElement('button');
-                downloadButton.className = 'mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300';
-                downloadButton.innerHTML = `Download Face ${index + 1}`;
-                downloadButton.onclick = () => {
-                    const link = document.createElement('a');
-                    link.download = `face-${index + 1}.png`;
-                    link.href = faceCanvas.toDataURL();
-                    link.click();
-                };
-
-                faceElement.appendChild(faceImage);
-                faceElement.appendChild(downloadButton);
-                facesGrid.appendChild(faceElement);
+                // Store face data
+                faces.push(faceCanvas.toDataURL());
             });
 
-            loading.classList.add('hidden');
-            results.classList.remove('hidden');
+            // Store results in localStorage
+            localStorage.setItem('originalImage', image.src);
+            localStorage.setItem('faces', JSON.stringify(faces));
+
+            // Redirect to results page
+            window.location.href = 'results.html';
         }
 
         async function handleFiles(files) {
