@@ -96,19 +96,12 @@
         async function loadYoloModel() {
             try {
                 console.log('Loading face detection model...');
-                // Using an alternative model URL
-                const modelUrl = 'https://raw.githubusercontent.com/microsoft/onnxruntime-web-demo/main/public/models/face-detection-retail-0004.onnx';
+                // Using locally hosted model URL
+                const modelUrl = './models/face-detection-retail-0004.onnx';
                 
-                // Fetch model with proper headers
+                // Fetch model
                 console.log('Fetching model from:', modelUrl);
-                const response = await fetch(modelUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Accept': 'application/octet-stream',
-                        'Content-Type': 'application/octet-stream'
-                    }
-                });
+                const response = await fetch(modelUrl);
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch model: ${response.statusText} (${response.status})`);
@@ -133,35 +126,7 @@
                 return session;
             } catch (error) {
                 console.error('Detailed error in model loading:', error);
-                // Try alternative URL if first one fails
-                try {
-                    const alternativeModelUrl = 'https://huggingface.co/spaces/microsoft/onnxruntime-web-demo/resolve/main/models/face-detection-retail-0004.onnx';
-                    console.log('Trying alternative model URL:', alternativeModelUrl);
-                    
-                    const response = await fetch(alternativeModelUrl, {
-                        method: 'GET',
-                        mode: 'cors',
-                        headers: {
-                            'Accept': 'application/octet-stream',
-                            'Content-Type': 'application/octet-stream'
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch from alternative URL: ${response.statusText}`);
-                    }
-                    
-                    const modelBuffer = await response.arrayBuffer();
-                    const session = await ort.InferenceSession.create(modelBuffer, {
-                        executionProviders: ['wasm'],
-                        graphOptimizationLevel: 'all'
-                    });
-                    console.log('Face detection model loaded successfully from alternative source');
-                    return session;
-                } catch (alternativeError) {
-                    console.error('Failed to load from alternative source:', alternativeError);
-                    throw new Error('Failed to load model from all sources');
-                }
+                throw error;
             }
         }
         
