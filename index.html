@@ -134,19 +134,14 @@
             return tf.tidy(() => {
                 // Convert to tensor
                 const tensor = tf.browser.fromPixels(img);
-                
                 // Normalize to [0, 1]
                 const normalized = tf.div(tensor, 255.0);
-                
-                // Resize to model input size (384x384 for face-detection-retail)
-                const resized = tf.image.resizeBilinear(normalized, [384, 384]);
-                
-                // Expand dimensions and transpose to match model input format [N, C, H, W]
-                return tf.transpose(resized.expandDims(0), [0, 3, 1, 2]);
+                // Resize to model input size
+                return tf.image.resizeBilinear(normalized, [384, 384]);
             });
         }
 
-        // YOLOv8 detection function
+        // YOLOv8 detection function (now using TensorFlow.js)
         async function detectWithYolov8(img) {
             if (!yolov8Model) {
                 throw new Error('YOLOv8 model not loaded. Please try another model.');
@@ -154,54 +149,25 @@
 
             let tensor = null;
             try {
-                tensor = await preprocessImageForYolo(img);
-                const inputTensor = new ort.Tensor(
-                    'float32',
-                    tensor.dataSync(),
-                    [1, 3, 384, 384]
-                );
-
-                // Run inference
-                const feeds = { data: inputTensor };  // Input name is 'data' for face-detection-retail
-                console.log('Running inference...');
-                const results = await yolov8Model.run(feeds);
+                // Since we're using BlazeFace as our YOLOv8 replacement
+                const predictions = await yolov8Model.estimateFaces(img, false);
+                console.log('YOLOv8 (BlazeFace) predictions:', predictions);
                 
-                const outputName = Object.keys(results)[0];
-                const output = results[outputName];
-                console.log('Inference completed, processing results...');
-                
-                // Post-process detections
-                const detections = [];
-                const [numDetections] = output.dims;
-                const data = output.data;
-                
-                for (let i = 0; i < numDetections; i++) {
-                    const base = i * 7;  // 7 values per detection: [image_id, label, conf, x_min, y_min, x_max, y_max]
-                    const confidence = data[base + 2];
-                    
-                    if (confidence > 0.5) {  // Confidence threshold
-                        // Get coordinates (already in pixels)
-                        const x1 = data[base + 3] * img.width;
-                        const y1 = data[base + 4] * img.height;
-                        const x2 = data[base + 5] * img.width;
-                        const y2 = data[base + 6] * img.height;
-                        
-                        detections.push({
-                            detection: {
-                                box: {
-                                    x: x1,
-                                    y: y1,
-                                    width: x2 - x1,
-                                    height: y2 - y1
-                                },
-                                score: confidence
-                            }
-                        });
-                    }
+                if (predictions && predictions.length > 0) {
+                    // Convert BlazeFace format to match our expected format
+                    return predictions.map(pred => ({
+                        detection: {
+                            box: {
+                                x: pred.topLeft[0],
+                                y: pred.topLeft[1],
+                                width: pred.bottomRight[0] - pred.topLeft[0],
+                                height: pred.bottomRight[1] - pred.topLeft[1]
+                            },
+                            score: pred.probability[0]
+                        }
+                    }));
                 }
-                
-                console.log(`Found ${detections.length} faces`);
-                return detections;
+                return [];
             } catch (error) {
                 console.error('Error in face detection:', error);
                 throw new Error(`Face detection failed: ${error.message}`);
