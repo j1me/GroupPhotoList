@@ -65,6 +65,7 @@
         let blazeFaceModel = null;
         let yolov8Model = null;
         let currentModel = 'faceapi';
+        let currentImage = null; // Store the current image
 
         // Load YOLOv8 model (now using TensorFlow.js)
         async function loadYoloModel() {
@@ -180,10 +181,62 @@
         }
 
         // Handle model selection change
-        document.getElementById('model-select').addEventListener('change', (e) => {
+        document.getElementById('model-select').addEventListener('change', async (e) => {
             currentModel = e.target.value;
             console.log('Switched to model:', currentModel);
+            
+            // If there's an image loaded, rerun detection with new model
+            if (currentImage) {
+                loading.classList.remove('hidden');
+                results.classList.add('hidden');
+                
+                try {
+                    console.log('Rerunning detection with new model...');
+                    await processImage(currentImage);
+                } catch (error) {
+                    console.error('Error processing image with new model:', error);
+                    alert('An error occurred while processing the image with the new model');
+                } finally {
+                    loading.classList.add('hidden');
+                    results.classList.remove('hidden');
+                }
+            }
         });
+
+        // Process image with current model
+        async function processImage(img) {
+            try {
+                console.log('Running face detection with model:', currentModel);
+                let detections;
+                
+                if (currentModel === 'faceapi') {
+                    detections = await faceapi.detectAllFaces(img);
+                } else if (currentModel === 'blazeface') {
+                    const predictions = await blazeFaceModel.estimateFaces(img, false);
+                    detections = predictions.map(pred => ({
+                        detection: {
+                            box: {
+                                x: pred.topLeft[0],
+                                y: pred.topLeft[1],
+                                width: pred.bottomRight[0] - pred.topLeft[0],
+                                height: pred.bottomRight[1] - pred.topLeft[1]
+                            }
+                        }
+                    }));
+                } else if (currentModel === 'yolov8') {
+                    detections = await detectWithYolov8(img);
+                }
+
+                if (!detections || detections.length === 0) {
+                    throw new Error('No faces detected in the image');
+                }
+
+                processDetections(detections, img, currentModel);
+            } catch (error) {
+                console.error('Error in face detection:', error);
+                throw new Error(`Face detection failed: ${error.message}`);
+            }
+        }
 
         // Process detections and create face crops
         function processDetections(detections, image, modelType) {
@@ -247,84 +300,18 @@
 
             try {
                 console.log('Loading image...');
-                const img = await loadImage(file);
-                console.log('Image loaded, dimensions:', img.width, 'x', img.height);
+                currentImage = await loadImage(file);  // Store the loaded image
+                console.log('Image loaded, dimensions:', currentImage.width, 'x', currentImage.height);
 
                 // Display original image
-                originalImage.src = img.src;
+                originalImage.src = currentImage.src;
 
                 // Set canvas dimensions
-                tempCanvas.width = img.width;
-                tempCanvas.height = img.height;
-                tempCtx.drawImage(img, 0, 0);
+                tempCanvas.width = currentImage.width;
+                tempCanvas.height = currentImage.height;
+                tempCtx.drawImage(currentImage, 0, 0);
 
-                console.log('Running face detection with model:', currentModel);
-                try {
-                    if (currentModel === 'faceapi') {
-                        // face-api.js detection
-                        const faceDetections = await faceapi.detectAllFaces(img);
-                        console.log('Raw face-api.js detections:', faceDetections);
-                        
-                        if (faceDetections && faceDetections.length > 0) {
-                            // Convert face-api.js format - box is directly on the detection object
-                            const convertedDetections = faceDetections.map(det => ({
-                                detection: {
-                                    box: det._box // Access the internal box object
-                                }
-                            }));
-                            processDetections(convertedDetections, img, 'faceapi');
-                        } else {
-                            throw new Error('No faces detected in the image');
-                        }
-                    } else if (currentModel === 'blazeface') {
-                        // BlazeFace detection
-                        const tensor = tf.tidy(() => {
-                            // Convert image to tensor (returns a tensor of shape [height, width, 3])
-                            return tf.browser.fromPixels(img);
-                        });
-                        
-                        try {
-                            // BlazeFace handles preprocessing internally
-                            const predictions = await blazeFaceModel.estimateFaces(tensor, false);
-                            console.log('BlazeFace raw predictions:', predictions);
-                            
-                            if (predictions && predictions.length > 0) {
-                                const convertedDetections = predictions.map(pred => ({
-                                    detection: {
-                                        box: {
-                                            x: pred.topLeft[0],
-                                            y: pred.topLeft[1],
-                                            width: pred.bottomRight[0] - pred.topLeft[0],
-                                            height: pred.bottomRight[1] - pred.topLeft[1]
-                                        }
-                                    }
-                                }));
-                                processDetections(convertedDetections, img, 'blazeface');
-                            } else {
-                                throw new Error('No faces detected in the image');
-                            }
-                        } finally {
-                            tensor.dispose();
-                        }
-                    } else if (currentModel === 'yolov8') {
-                        // YOLOv8 detection
-                        if (!yolov8Model) {
-                            throw new Error('YOLOv8 model not loaded. Please try another model.');
-                        }
-                        
-                        const detections = await detectWithYolov8(img);
-                        console.log('YOLOv8 detections:', detections);
-                        
-                        if (detections && detections.length > 0) {
-                            processDetections(detections, img, 'yolov8');
-                        } else {
-                            throw new Error('No faces detected in the image');
-                        }
-                    }
-                } catch (detectionError) {
-                    console.error('Face detection error:', detectionError);
-                    throw new Error(`Face detection failed: ${detectionError.message}`);
-                }
+                await processImage(currentImage);
             } catch (error) {
                 console.error('Error processing image:', error);
                 loading.classList.add('hidden');
