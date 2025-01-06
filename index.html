@@ -1,48 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Group Photo Face Detection</title>
+    <title>FaceFrame - Group Photo Face Detection</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Load TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0"></script>
-    <!-- Load face detection model -->
     <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
     <style>
-        .drag-area { border: 2px dashed #4CAF50; transition: all 0.3s ease; }
-        .drag-area.active { border-color: #2196F3; background-color: rgba(33, 150, 243, 0.1); }
+        .gradient-bg { background: linear-gradient(180deg, #EBF4FF 0%, #F3E8FF 100%); }
+        .drag-area { transition: all 0.3s ease; }
+        .drag-area.active { background-color: rgba(59, 130, 246, 0.1); }
         #temp-canvas { display: none; }
+        .notification {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-8">Group Photo Face Detection</h1>
-        <div class="max-w-2xl mx-auto">
-            <div class="drag-area bg-white p-8 rounded-lg shadow-md text-center mb-8">
-                <div class="mb-4">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                    </svg>
+<body class="gradient-bg min-h-screen">
+    <div class="p-4 sm:p-6 lg:p-8 flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center justify-center">
+                <h1 class="text-4xl font-bold text-blue-800">FaceFrame</h1>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="bg-white rounded-lg shadow-lg max-w-4xl mx-auto p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">How it works</h2>
+                
+                <!-- Process Steps -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="text-center">
+                        <img src="assets/upload.svg" alt="Upload" class="w-24 h-24 mx-auto mb-2">
+                        <p class="text-sm text-gray-600">1. Upload a group photo</p>
+                    </div>
+                    <div class="text-center">
+                        <img src="assets/process.svg" alt="Process" class="w-24 h-24 mx-auto mb-2">
+                        <p class="text-sm text-gray-600">2. AI detects faces</p>
+                    </div>
+                    <div class="text-center">
+                        <img src="assets/result.svg" alt="Result" class="w-24 h-24 mx-auto mb-2">
+                        <p class="text-sm text-gray-600">3. View individual faces</p>
+                    </div>
                 </div>
-                <p class="text-gray-600 mb-4">Drag & Drop your group photo here or</p>
-                <input type="file" id="file-input" class="hidden" accept="image/*">
-                <button onclick="document.getElementById('file-input').click()" 
-                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition duration-300">
-                    Choose File
-                </button>
+
+                <!-- Upload Area -->
+                <div id="loading" class="hidden text-center p-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-4 text-gray-600" id="loading-text">Loading model...</p>
+                </div>
+
+                <div id="upload-area" class="drag-area border-2 border-dashed border-blue-300 rounded-lg p-8 text-center bg-blue-50 transition-all hover:bg-blue-100">
+                    <svg class="mx-auto h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="mt-4 text-sm font-medium text-gray-600">
+                        Drag and drop your image here, or
+                    </p>
+                    <button onclick="document.getElementById('file-input').click()" 
+                            class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded inline-flex items-center transition duration-300">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Choose file
+                    </button>
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                    <p class="mt-1 text-xs text-gray-500">
+                        Supports: JPG, PNG, GIF. Processing is done locally in your browser.
+                    </p>
+                </div>
+
+                <!-- Results Area -->
+                <div id="results" class="hidden mt-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Original Photo</h2>
+                    <img id="original-image" class="w-full rounded-lg shadow-md mb-8" src="" alt="Original photo">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Detected Faces</h2>
+                    <div id="faces-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+                </div>
             </div>
-            <div id="loading" class="hidden text-center mb-8">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                <p class="mt-4 text-gray-600">Processing image...</p>
-            </div>
-            <div id="results" class="hidden">
-                <h2 class="text-2xl font-semibold mb-4">Original Photo</h2>
-                <img id="original-image" class="w-full rounded-lg shadow-md mb-8" src="" alt="Original photo">
-                <h2 class="text-2xl font-semibold mb-4">Detected Faces</h2>
-                <div id="faces-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
-            </div>
-        </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center">
+            <button class="text-blue-600 hover:text-blue-800 font-medium">About FaceFrame</button>
+        </footer>
+
+        <!-- Notification -->
+        <div id="notification" class="notification hidden"></div>
     </div>
+
     <canvas id="temp-canvas"></canvas>
     <script>
         let isModelLoaded = false;
@@ -227,6 +283,24 @@
                 alert('Failed to load face detection model. Please try refreshing the page.');
             }
         });
+
+        function showNotification(type, message) {
+            const notification = document.getElementById('notification');
+            notification.className = `notification ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            notification.textContent = message;
+            notification.classList.remove('hidden');
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Update loading states
+        function updateLoadingState(stage) {
+            const loadingText = document.getElementById('loading-text');
+            loadingText.textContent = stage === 'initializing' 
+                ? 'Loading face detection model...' 
+                : 'Processing image...';
+        }
     </script>
 </body>
 </html>
