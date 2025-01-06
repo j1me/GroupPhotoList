@@ -96,14 +96,17 @@
         async function loadYoloModel() {
             try {
                 console.log('Loading face detection model...');
-                const modelUrl = 'https://cdn.jsdelivr.net/gh/microsoft/onnxruntime-web-demo@main/public/models/face-detection-retail-0004.onnx';
+                // Using an alternative model URL
+                const modelUrl = 'https://raw.githubusercontent.com/microsoft/onnxruntime-web-demo/main/public/models/face-detection-retail-0004.onnx';
                 
-                // Fetch model first to verify it's accessible
+                // Fetch model with proper headers
                 console.log('Fetching model from:', modelUrl);
                 const response = await fetch(modelUrl, {
-                    mode: 'cors',  // Explicitly request CORS
+                    method: 'GET',
+                    mode: 'cors',
                     headers: {
-                        'Accept': 'application/octet-stream'
+                        'Accept': 'application/octet-stream',
+                        'Content-Type': 'application/octet-stream'
                     }
                 });
                 
@@ -114,7 +117,7 @@
                 const modelBuffer = await response.arrayBuffer();
                 console.log('Model fetched successfully, size:', modelBuffer.byteLength, 'bytes');
                 
-                // Create session with v1.12.0 specific options
+                // Create session with specific options
                 const sessionOptions = {
                     executionProviders: ['wasm'],
                     graphOptimizationLevel: 'all',
@@ -130,11 +133,35 @@
                 return session;
             } catch (error) {
                 console.error('Detailed error in model loading:', error);
-                if (error.response) {
-                    console.error('Response status:', error.response.status);
-                    console.error('Response text:', await error.response.text());
+                // Try alternative URL if first one fails
+                try {
+                    const alternativeModelUrl = 'https://huggingface.co/spaces/microsoft/onnxruntime-web-demo/resolve/main/models/face-detection-retail-0004.onnx';
+                    console.log('Trying alternative model URL:', alternativeModelUrl);
+                    
+                    const response = await fetch(alternativeModelUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/octet-stream',
+                            'Content-Type': 'application/octet-stream'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch from alternative URL: ${response.statusText}`);
+                    }
+                    
+                    const modelBuffer = await response.arrayBuffer();
+                    const session = await ort.InferenceSession.create(modelBuffer, {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    });
+                    console.log('Face detection model loaded successfully from alternative source');
+                    return session;
+                } catch (alternativeError) {
+                    console.error('Failed to load from alternative source:', alternativeError);
+                    throw new Error('Failed to load model from all sources');
                 }
-                throw error;
             }
         }
         

@@ -46,4 +46,4 @@ All processing is done entirely in your browser. No images are uploaded to any s
 
 ## License
 
-MIT License - see LICENSE file for details 
+MIT License - see LICENSE file for details
