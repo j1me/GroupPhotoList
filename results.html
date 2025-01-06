@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FaceFrame - Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(180deg, #EBF4FF 0%, #F3E8FF 100%); }
+        .face-name-input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+        }
+        .disco-preview {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 0.375rem;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <div class="p-4 sm:p-6 lg:p-8 flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center justify-center flex-col">
+                <a href="index.html" class="text-4xl font-bold text-blue-800 hover:text-blue-900 transition-colors">FaceFrame</a>
+                <p class="mt-2 text-gray-600">Privacy-first face detection</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="bg-white rounded-lg shadow-lg max-w-4xl mx-auto p-6">
+                <!-- Upload Another Image Button -->
+                <div class="text-center mb-8">
+                    <a href="index.html" class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Upload Another Image
+                    </a>
+                </div>
+
+                <!-- Results Area -->
+                <div id="results">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-semibold text-gray-800">Original Photo</h2>
+                        <button onclick="generatePDF()" class="bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300">
+                            Generate PDF List
+                        </button>
+                    </div>
+                    <img id="original-image" class="w-full rounded-lg shadow-md mb-8" src="" alt="Original photo">
+                    
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Detected Faces</h2>
+                    <div id="faces-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+
+                    <div id="disco-section" class="mt-8 hidden">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Disco Mode</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="disco-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center">
+            <a href="about.html" class="text-blue-600 hover:text-blue-800 font-medium">About FaceFrame</a>
+        </footer>
+    </div>
+
+    <script>
+        // Function to create face card
+        function createFaceCard(faceData, index) {
+            const faceElement = document.createElement('div');
+            faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
+            
+            const faceImage = document.createElement('img');
+            faceImage.src = faceData;
+            faceImage.className = 'w-full h-48 object-cover rounded mb-3';
+            faceImage.alt = `Face ${index + 1}`;
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = `Name for Face ${index + 1}`;
+            nameInput.className = 'face-name-input';
+            nameInput.dataset.faceIndex = index;
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'space-y-2 mt-2';
+
+            // Download button
+            const downloadButton = document.createElement('button');
+            downloadButton.className = 'w-full bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300';
+            downloadButton.innerHTML = 'Download';
+            downloadButton.onclick = () => {
+                const link = document.createElement('a');
+                link.download = `face-${index + 1}.png`;
+                link.href = faceData;
+                link.click();
+            };
+
+            // Google Search button
+            const googleSearchButton = document.createElement('a');
+            googleSearchButton.className = 'block w-full bg-green-500 hover:bg-green-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 text-center';
+            googleSearchButton.innerHTML = 'Search with Google';
+            googleSearchButton.onclick = (e) => {
+                e.preventDefault();
+                const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(faceData)}`;
+                window.open(searchUrl, '_blank');
+            };
+
+            // Disco Mode button
+            const discoButton = document.createElement('button');
+            discoButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300';
+            discoButton.innerHTML = 'Generate Disco GIF';
+            discoButton.onclick = () => generateDiscoGif(faceData, index);
+
+            buttonContainer.appendChild(nameInput);
+            buttonContainer.appendChild(downloadButton);
+            buttonContainer.appendChild(googleSearchButton);
+            buttonContainer.appendChild(discoButton);
+
+            faceElement.appendChild(faceImage);
+            faceElement.appendChild(buttonContainer);
+            return faceElement;
+        }
+
+        // Function to generate PDF
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const faces = document.querySelectorAll('.face-name-input');
+            
+            doc.setFontSize(20);
+            doc.text('Face List', 20, 20);
+            
+            let y = 40;
+            const imageSize = 40; // Size of face images in the PDF
+            const nameX = 70; // X position for names
+            const imagesPerPage = 5;
+            let currentPage = 1;
+
+            for (let i = 0; i < faces.length; i++) {
+                if (i > 0 && i % imagesPerPage === 0) {
+                    doc.addPage();
+                    y = 40;
+                    currentPage++;
+                }
+
+                const input = faces[i];
+                const name = input.value || '';
+                const faceImg = input.parentElement.parentElement.querySelector('img');
+                
+                // Convert the face image to base64
+                const canvas = document.createElement('canvas');
+                canvas.width = imageSize;
+                canvas.height = imageSize;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(faceImg, 0, 0, imageSize, imageSize);
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Add face image
+                doc.addImage(imgData, 'JPEG', 20, y - 10, imageSize, imageSize);
+                
+                // Add name
+                doc.setFontSize(12);
+                doc.text(name, nameX, y + 10);
+                
+                // Add line separator
+                doc.setDrawColor(200);
+                doc.line(20, y + imageSize - 5, 180, y + imageSize - 5);
+                
+                y += imageSize + 10; // Move down for next entry
+            }
+            
+            doc.save('face-list.pdf');
+        }
+
+        // Function to generate disco GIF
+        function generateDiscoGif(faceData, index) {
+            try {
+                const gif = new GIF({
+                    workers: 1,
+                    quality: 10,
+                    width: 200,
+                    height: 200,
+                    debug: true
+                });
+
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                
+                img.onload = () => {
+                    try {
+                        // Create 10 frames with different disco effects
+                        for (let i = 0; i < 10; i++) {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 200;
+                            canvas.height = 200;
+                            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                            
+                            // Save the context state
+                            ctx.save();
+                            
+                            // Draw the face
+                            ctx.drawImage(img, 0, 0, 200, 200);
+                            
+                            // Add disco effects (colors)
+                            ctx.globalCompositeOperation = 'source-atop';
+                            ctx.fillStyle = `hsla(${i * 36}, 100%, 50%, 0.5)`;
+                            ctx.fillRect(0, 0, 200, 200);
+                            
+                            // Add a simpler rotation effect
+                            ctx.translate(100, 100);
+                            ctx.rotate((i * Math.PI) / 5);
+                            ctx.translate(-100, -100);
+                            
+                            // Restore the context state
+                            ctx.restore();
+                            
+                            gif.addFrame(canvas, { 
+                                delay: 100,
+                                copy: true
+                            });
+                        }
+
+                        gif.on('progress', function(p) {
+                            console.log('Generating GIF: ' + Math.round(p * 100) + '%');
+                        });
+
+                        gif.on('finished', function(blob) {
+                            try {
+                                const discoSection = document.getElementById('disco-section');
+                                const discoGrid = document.getElementById('disco-grid');
+                                
+                                const discoPreview = document.createElement('img');
+                                discoPreview.src = URL.createObjectURL(blob);
+                                discoPreview.className = 'disco-preview';
+                                
+                                const downloadButton = document.createElement('button');
+                                downloadButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
+                                downloadButton.innerHTML = 'Download Disco GIF';
+                                downloadButton.onclick = () => {
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `disco-face-${index + 1}.gif`;
+                                    link.click();
+                                };
+
+                                const container = document.createElement('div');
+                                container.className = 'bg-white p-4 rounded-lg shadow-md';
+                                container.appendChild(discoPreview);
+                                container.appendChild(downloadButton);
+                                
+                                discoGrid.appendChild(container);
+                                discoSection.classList.remove('hidden');
+                            } catch (error) {
+                                console.error('Error in GIF finished callback:', error);
+                                alert('Error creating disco effect. Please try again.');
+                            }
+                        });
+
+                        gif.render();
+                    } catch (error) {
+                        console.error('Error in frame generation:', error);
+                        alert('Error generating disco effect. Please try again.');
+                    }
+                };
+
+                img.onerror = (error) => {
+                    console.error('Error loading image:', error);
+                    alert('Error loading image for disco effect. Please try again.');
+                };
+
+                img.src = faceData;
+            } catch (error) {
+                console.error('Error initializing GIF generation:', error);
+                alert('Error initializing disco effect. Please try again.');
+            }
+        }
+
+        // Load results when page loads
+        window.addEventListener('load', () => {
+            const originalImageData = localStorage.getItem('originalImage');
+            const facesData = JSON.parse(localStorage.getItem('faces') || '[]');
+            
+            if (originalImageData) {
+                document.getElementById('original-image').src = originalImageData;
+            }
+
+            const facesGrid = document.getElementById('faces-grid');
+            facesData.forEach((faceData, index) => {
+                const faceCard = createFaceCard(faceData, index);
+                facesGrid.appendChild(faceCard);
+            });
+
+            // Clear storage after loading
+            localStorage.removeItem('originalImage');
+            localStorage.removeItem('faces');
+        });
+    </script>
+</body>
+</html> 
