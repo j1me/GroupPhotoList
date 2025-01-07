@@ -91,11 +91,14 @@
             const faceElement = document.createElement('div');
             faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
             
+            // Create and set up face image
             const faceImage = document.createElement('img');
             faceImage.src = faceData;
             faceImage.className = 'w-full h-48 object-cover rounded mb-3';
             faceImage.alt = `Face ${index + 1}`;
-
+            faceImage.setAttribute('data-face-index', index);
+            
+            // Create name input
             const nameInput = document.createElement('input');
             nameInput.type = 'text';
             nameInput.placeholder = `Name for Face ${index + 1}`;
@@ -480,16 +483,23 @@
                 // Load all face images first
                 const faceImages = await Promise.all(Array.from(faces).map(face => {
                     return new Promise((resolve, reject) => {
-                        const img = new Image();
-                        img.onload = () => resolve(img);
-                        img.onerror = reject;
-                        // Find any image in the face card
-                        const faceImg = face.querySelector('img');
-                        if (!faceImg) {
-                            reject(new Error('Face image not found'));
-                            return;
+                        try {
+                            const img = new Image();
+                            img.onload = () => resolve(img);
+                            img.onerror = reject;
+                            // Find face image using the correct selector
+                            const faceImg = face.querySelector('img[alt^="Face"]');
+                            if (!faceImg) {
+                                console.error('Face card structure:', face.innerHTML);
+                                reject(new Error('Face image not found'));
+                                return;
+                            }
+                            console.log('Found face image:', faceImg.src);
+                            img.src = faceImg.src;
+                        } catch (error) {
+                            console.error('Error in face image loading:', error);
+                            reject(error);
                         }
-                        img.src = faceImg.src;
                     });
                 }));
 
