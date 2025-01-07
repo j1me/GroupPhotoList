@@ -505,44 +505,18 @@
                             // Debug the face card structure
                             console.log(`Face card ${idx} structure:`, face.outerHTML);
                             
-                            // Try multiple selector strategies
-                            let faceImg = null;
-                            
-                            // Strategy 1: Direct child img
-                            const directChildren = face.children;
-                            for (let child of directChildren) {
-                                if (child.tagName === 'IMG') {
-                                    faceImg = child;
-                                    console.log(`Strategy 1 found image for face ${idx}`);
-                                    break;
-                                }
-                            }
-                            
-                            // Strategy 2: Any img with Face in alt
-                            if (!faceImg) {
-                                const allImages = face.getElementsByTagName('img');
-                                for (let img of allImages) {
-                                    if (img.alt && img.alt.includes('Face')) {
-                                        faceImg = img;
-                                        console.log(`Strategy 2 found image for face ${idx}`);
-                                        break;
-                                    }
-                                }
-                            }
-                            
-                            // Strategy 3: First img element
-                            if (!faceImg) {
-                                const firstImg = face.getElementsByTagName('img')[0];
-                                if (firstImg) {
-                                    faceImg = firstImg;
-                                    console.log(`Strategy 3 found image for face ${idx}`);
-                                }
-                            }
+                            // Find the first image in the card (it should be the face image)
+                            const faceImg = face.querySelector('img');
                             
                             if (!faceImg) {
                                 console.error(`No face image found for face ${idx}. Card contents:`, face.outerHTML);
                                 reject(new Error(`Face image not found in card ${idx}`));
                                 return;
+                            }
+                            
+                            // Verify it's the correct image
+                            if (!faceImg.alt || !faceImg.alt.includes('Face')) {
+                                console.warn(`Warning: Image found but alt text doesn't contain 'Face'. Using it anyway.`);
                             }
                             
                             console.log(`Successfully found face image ${idx}:`, faceImg.src);
