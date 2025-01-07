@@ -5,7 +5,26 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/build/gifshot.min.js"></script>
+    <script src="https://unpkg.com/gifshot/build/gifshot.min.js"></script>
+    <script>
+        // Verify gifshot is loaded
+        window.addEventListener('load', function() {
+            if (typeof gifshot === 'undefined') {
+                console.error('Gifshot library failed to load. Loading from backup source...');
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.4.5/gifshot.min.js';
+                script.onload = function() {
+                    console.log('Gifshot loaded successfully from backup source');
+                };
+                script.onerror = function() {
+                    console.error('Failed to load Gifshot from backup source');
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('Gifshot loaded successfully');
+            }
+        });
+    </script>
     <style>
         .gradient-bg { background: linear-gradient(180deg, #EBF4FF 0%, #F3E8FF 100%); }
         .face-name-input {
@@ -659,11 +678,19 @@
                 previewContainer.appendChild(previewImg);
 
                 // Create GIF using gifshot
+                if (typeof gifshot === 'undefined') {
+                    loadingMessage.textContent = 'Error: GIF generation library not available. Please try again in a few moments.';
+                    console.error('Gifshot library not available');
+                    return;
+                }
+
                 gifshot.createGIF({
                     images: frames,
                     gifWidth: canvasWidth,
                     gifHeight: canvasHeight,
                     interval: 0.1, // 100ms between frames
+                    sampleInterval: 10, // Reduce quality for better performance
+                    numWorkers: 2, // Use 2 workers for better performance
                     progressCallback: function(captureProgress) {
                         loadingMessage.textContent = `Creating GIF: ${Math.round(captureProgress * 100)}%`;
                     }
