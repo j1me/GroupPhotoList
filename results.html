@@ -67,9 +67,9 @@
                             <div class="relative group">
                                 <img id="original-image" class="w-full rounded-lg shadow-md" src="" alt="Original photo">
                                 <!-- Dance party preview overlay (hidden by default) -->
-                                <div id="dance-preview-overlay" class="hidden absolute inset-0 bg-black bg-opacity-50 rounded-lg">
-                                    <div class="p-4">
-                                        <img id="dance-preview-gif" class="w-full rounded-lg" src="" alt="Dance Party Preview">
+                                <div id="dance-preview-overlay" class="hidden absolute inset-0 bg-black bg-opacity-75 backdrop-blur-sm rounded-lg transition-all duration-300">
+                                    <div class="absolute inset-0 p-4 flex items-center justify-center">
+                                        <img id="dance-preview-gif" class="max-w-full max-h-full rounded-lg shadow-xl" src="" alt="Dance Party Preview">
                                     </div>
                                 </div>
                             </div>
@@ -551,7 +551,7 @@
                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-2"></div>
                     <p class="text-sm text-gray-600">Creating dance party...</p>
                 `;
-                document.getElementById('disco-grid').appendChild(loadingDiv);
+                document.getElementById('original-image').parentNode.appendChild(loadingDiv);
 
                 // Load all face images first with better debugging
                 const faceImages = await Promise.all(Array.from(faces).map((face, idx) => {
@@ -700,22 +700,6 @@
                     frames.push(canvas.toDataURL());
                 }
 
-                // Create preview
-                const previewContainer = document.createElement('div');
-                previewContainer.className = 'mt-8 bg-white p-4 rounded-lg shadow-md';
-                previewContainer.style.width = '100%';
-
-                const previewTitle = document.createElement('h3');
-                previewTitle.className = 'text-xl font-semibold text-gray-800 mb-4';
-                previewTitle.textContent = '🪩 Dance Party';
-                previewContainer.appendChild(previewTitle);
-
-                // Create loading message
-                const loadingMessage = document.createElement('p');
-                loadingMessage.className = 'text-sm text-gray-600 mb-4';
-                loadingMessage.textContent = 'Generating GIF...';
-                previewContainer.appendChild(loadingMessage);
-
                 // Create GIF using gif.js
                 const gif = new GIF({
                     workers: 2,
@@ -732,59 +716,19 @@
                     gif.addFrame(img, { delay: 100 }); // 100ms delay between frames
                 });
 
-                // Create preview image element
-                const previewImg = document.createElement('img');
-                previewImg.className = 'w-full rounded-lg';
-                previewContainer.appendChild(previewImg);
-
                 // When GIF is finished rendering
                 gif.on('finished', function(blob) {
-                    // Update the preview with the generated GIF
-                    previewImg.src = URL.createObjectURL(blob);
-                    loadingMessage.textContent = 'Dance Party GIF Ready!';
-                    
-                    // Add download button for GIF
-                    const downloadButton = document.createElement('button');
-                    downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
-                    downloadButton.innerHTML = 'Download Dance Party GIF';
-                    downloadButton.onclick = () => {
-                        const link = document.createElement('a');
-                        link.href = previewImg.src;
-                        link.download = 'dance-party.gif';
-                        link.click();
-                    };
-                    previewContainer.appendChild(downloadButton);
+                    // Remove loading indicator
+                    if (loadingDiv.parentNode) {
+                        loadingDiv.parentNode.removeChild(loadingDiv);
+                    }
 
-                    // Add download frames button as a backup
-                    const downloadFramesButton = document.createElement('button');
-                    downloadFramesButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
-                    downloadFramesButton.innerHTML = 'Download Individual Frames';
-                    downloadFramesButton.onclick = () => {
-                        const zip = new JSZip();
-                        frames.forEach((frame, i) => {
-                            const base64Data = frame.replace(/^data:image\/png;base64,/, '');
-                            zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
-                        });
-                        
-                        zip.generateAsync({ type: 'blob' }).then(blob => {
-                            const link = document.createElement('a');
-                            link.href = URL.createObjectURL(blob);
-                            link.download = 'dance-party-frames.zip';
-                            link.click();
-                        });
-                    };
-                    previewContainer.appendChild(downloadFramesButton);
+                    // Update the preview with the generated GIF
+                    updateDancePreview(blob);
                 });
 
                 // Start rendering the GIF
                 gif.render();
-
-                // Show preview
-                const discoSection = document.getElementById('disco-section');
-                const discoGrid = document.getElementById('disco-grid');
-                discoGrid.innerHTML = '';
-                discoGrid.appendChild(previewContainer);
-                discoSection.classList.remove('hidden');
 
             } catch (error) {
                 console.error('Error generating dance party:', error);
