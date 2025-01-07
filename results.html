@@ -65,11 +65,37 @@
                         <div class="md:w-1/2">
                             <h2 class="text-2xl font-semibold text-gray-800 mb-4">Original Photo</h2>
                             <div class="relative group">
-                                <img id="original-image" class="w-full rounded-lg shadow-md" src="" alt="Original photo">
-                                <!-- Dance party preview overlay (hidden by default) -->
-                                <div id="dance-preview-overlay" class="hidden absolute inset-0 bg-black bg-opacity-75 backdrop-blur-sm rounded-lg transition-all duration-300">
-                                    <div class="absolute inset-0 p-4 flex items-center justify-center">
-                                        <img id="dance-preview-gif" class="max-w-full max-h-full rounded-lg shadow-xl" src="" alt="Dance Party Preview">
+                                <!-- Main carousel -->
+                                <div class="relative">
+                                    <div id="main-carousel" class="relative overflow-hidden rounded-lg shadow-md">
+                                        <div class="flex transition-transform duration-300">
+                                            <img id="original-image" class="w-full shrink-0" src="" alt="Original photo">
+                                            <img id="dance-preview-gif" class="w-full shrink-0 hidden" src="" alt="Dance Party Preview">
+                                        </div>
+                                        <!-- Carousel controls -->
+                                        <div class="absolute inset-0 flex items-center justify-between p-4">
+                                            <button id="main-prev" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform -translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                                </svg>
+                                            </button>
+                                            <button id="main-next" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <!-- Expand button -->
+                                        <button onclick="expandView('main-carousel')" class="absolute top-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100">
+                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <!-- Carousel indicators -->
+                                    <div class="absolute -bottom-6 left-0 right-0 flex justify-center gap-2">
+                                        <button class="w-2 h-2 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors" onclick="showMainSlide(0)"></button>
+                                        <button class="w-2 h-2 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors" onclick="showMainSlide(1)"></button>
                                     </div>
                                 </div>
                             </div>
@@ -117,18 +143,81 @@
         </footer>
     </div>
 
+    <!-- Modal for expanded view -->
+    <div id="expanded-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center">
+        <div class="max-w-4xl w-full mx-4">
+            <div class="relative">
+                <div id="expanded-carousel" class="relative overflow-hidden rounded-lg">
+                    <div class="flex transition-transform duration-300">
+                        <!-- Content will be cloned here -->
+                    </div>
+                    <!-- Expanded view controls -->
+                    <div class="absolute inset-0 flex items-center justify-between p-4">
+                        <button id="expanded-prev" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                        <button id="expanded-next" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Close button -->
+                    <button onclick="closeExpandedView()" class="absolute top-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Function to create face card
         function createFaceCard(faceData, index) {
             const faceElement = document.createElement('div');
             faceElement.className = 'bg-white p-4 rounded-lg shadow-md';
             
-            // Create and set up face image
-            const faceImage = document.createElement('img');
-            faceImage.src = faceData;
-            faceImage.className = 'w-full h-48 object-cover rounded mb-3';
-            faceImage.alt = `Face ${index + 1}`;
-            faceImage.setAttribute('data-face-index', index);
+            // Create carousel container
+            const carouselContainer = document.createElement('div');
+            carouselContainer.className = 'relative group mb-3';
+            carouselContainer.innerHTML = `
+                <div id="face-carousel-${index}" class="relative overflow-hidden rounded">
+                    <div class="flex transition-transform duration-300">
+                        <img src="${faceData}" class="w-full h-48 object-cover shrink-0" alt="Face ${index + 1}" data-face-index="${index}">
+                        <div class="w-full h-48 shrink-0 hidden" id="face-gif-container-${index}">
+                            <!-- GIF will be added here -->
+                        </div>
+                    </div>
+                    <!-- Carousel controls -->
+                    <div class="absolute inset-0 flex items-center justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="showFaceSlide(${index}, 0)" class="p-1 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform -translate-x-2 group-hover:translate-x-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                        <button onclick="showFaceSlide(${index}, 1)" class="p-1 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform translate-x-2 group-hover:translate-x-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Expand button -->
+                    <button onclick="expandView('face-carousel-${index}')" class="absolute top-2 right-2 p-1 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all transform scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                    </button>
+                    <!-- Indicators -->
+                    <div class="absolute -bottom-1 left-0 right-0 flex justify-center gap-1">
+                        <button class="w-1.5 h-1.5 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors" onclick="showFaceSlide(${index}, 0)"></button>
+                        <button class="w-1.5 h-1.5 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors" onclick="showFaceSlide(${index}, 1)"></button>
+                    </div>
+                </div>
+            `;
             
             // Create name input
             const nameInput = document.createElement('input');
@@ -224,7 +313,7 @@
             buttonContainer.appendChild(googleSearchButton);
             buttonContainer.appendChild(gifContainer);
 
-            faceElement.appendChild(faceImage);
+            faceElement.appendChild(carouselContainer);
             faceElement.appendChild(nameInput);
             faceElement.appendChild(buttonContainer);
             return faceElement;
@@ -378,45 +467,28 @@
 
         // Helper function to create animation preview
         function createAnimationPreview(frames, index, loadingDiv, effectName) {
-            const previewImg = document.createElement('img');
-            previewImg.className = 'disco-preview';
-            let currentFrame = 0;
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                width: 200,
+                height: 200,
+                workerScript: 'gif.worker.js'
+            });
 
-            const animate = () => {
-                previewImg.src = frames[currentFrame];
-                currentFrame = (currentFrame + 1) % frames.length;
-            };
-            const animationInterval = setInterval(animate, 100);
-            animate();
+            frames.forEach(frameData => {
+                const img = new Image();
+                img.src = frameData;
+                gif.addFrame(img, { delay: 100 });
+            });
 
-            const downloadButton = document.createElement('button');
-            downloadButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
-            downloadButton.innerHTML = 'Download Animation';
-            downloadButton.onclick = () => {
-                const zip = new JSZip();
-                frames.forEach((frame, i) => {
-                    const base64Data = frame.replace(/^data:image\/png;base64,/, '');
-                    zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
-                });
-                
-                zip.generateAsync({ type: 'blob' }).then(blob => {
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `${effectName.toLowerCase()}-face-${index + 1}-frames.zip`;
-                    link.click();
-                });
-            };
+            gif.on('finished', function(blob) {
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.parentNode.removeChild(loadingDiv);
+                }
+                updateFaceGifPreview(index, blob);
+            });
 
-            const container = document.createElement('div');
-            container.className = 'bg-white p-4 rounded-lg shadow-md';
-            container.appendChild(previewImg);
-            container.appendChild(downloadButton);
-
-            const discoSection = document.getElementById('disco-section');
-            const discoGrid = document.getElementById('disco-grid');
-            discoGrid.removeChild(loadingDiv);
-            discoGrid.appendChild(container);
-            discoSection.classList.remove('hidden');
+            gif.render();
         }
 
         // Update the disco GIF function to use the new helper
@@ -734,6 +806,117 @@
                 console.error('Error generating dance party:', error);
                 alert('Error creating dance party. Please try again.');
             }
+        }
+
+        // Carousel functionality
+        let currentMainSlide = 0;
+        const mainCarousel = document.getElementById('main-carousel');
+        const mainPrev = document.getElementById('main-prev');
+        const mainNext = document.getElementById('main-next');
+
+        function showMainSlide(index) {
+            const carousel = mainCarousel.querySelector('.flex');
+            currentMainSlide = index;
+            carousel.style.transform = `translateX(-${index * 100}%)`;
+            updateMainIndicators();
+        }
+
+        function updateMainIndicators() {
+            const indicators = document.querySelectorAll('#main-carousel + div button');
+            indicators.forEach((indicator, index) => {
+                indicator.classList.toggle('bg-blue-500', index === currentMainSlide);
+                indicator.classList.toggle('bg-gray-300', index !== currentMainSlide);
+            });
+        }
+
+        mainPrev.onclick = () => showMainSlide(Math.max(0, currentMainSlide - 1));
+        mainNext.onclick = () => showMainSlide(Math.min(1, currentMainSlide + 1));
+
+        // Expanded view functionality
+        function expandView(carouselId) {
+            const modal = document.getElementById('expanded-modal');
+            const sourceCarousel = document.getElementById(carouselId);
+            const expandedCarousel = document.getElementById('expanded-carousel');
+            
+            // Clone the carousel content
+            const content = sourceCarousel.querySelector('.flex').cloneNode(true);
+            expandedCarousel.querySelector('.flex').replaceWith(content);
+            
+            // Show current slide
+            content.style.transform = `translateX(-${currentMainSlide * 100}%)`;
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            
+            // Update expanded view controls
+            document.getElementById('expanded-prev').onclick = () => {
+                const newIndex = Math.max(0, currentMainSlide - 1);
+                showMainSlide(newIndex);
+                content.style.transform = `translateX(-${newIndex * 100}%)`;
+            };
+            
+            document.getElementById('expanded-next').onclick = () => {
+                const newIndex = Math.min(1, currentMainSlide + 1);
+                showMainSlide(newIndex);
+                content.style.transform = `translateX(-${newIndex * 100}%)`;
+            };
+        }
+
+        function closeExpandedView() {
+            document.getElementById('expanded-modal').classList.add('hidden');
+        }
+
+        // Update the GIF preview to work with carousel
+        function updateDancePreview(gifBlob) {
+            const previewGif = document.getElementById('dance-preview-gif');
+            const danceButton = document.getElementById('dance-party-btn');
+            
+            previewGif.src = URL.createObjectURL(gifBlob);
+            previewGif.classList.remove('hidden');
+            
+            // Update button to download
+            danceButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download Dance Party GIF
+            `;
+            danceButton.onclick = () => {
+                const link = document.createElement('a');
+                link.href = previewGif.src;
+                link.download = 'dance-party.gif';
+                link.click();
+            };
+
+            // Show second slide
+            showMainSlide(1);
+        }
+
+        // Add face carousel functionality
+        let currentFaceSlides = {};
+
+        function showFaceSlide(faceIndex, slideIndex) {
+            const carousel = document.querySelector(`#face-carousel-${faceIndex} .flex`);
+            currentFaceSlides[faceIndex] = slideIndex;
+            carousel.style.transform = `translateX(-${slideIndex * 100}%)`;
+            updateFaceIndicators(faceIndex);
+        }
+
+        function updateFaceIndicators(faceIndex) {
+            const indicators = document.querySelectorAll(`#face-carousel-${faceIndex} + div button`);
+            const currentSlide = currentFaceSlides[faceIndex] || 0;
+            indicators.forEach((indicator, index) => {
+                indicator.classList.toggle('bg-blue-500', index === currentSlide);
+                indicator.classList.toggle('bg-gray-300', index !== currentSlide);
+            });
+        }
+
+        // Update the individual face GIF preview
+        function updateFaceGifPreview(faceIndex, gifBlob) {
+            const container = document.getElementById(`face-gif-container-${faceIndex}`);
+            container.innerHTML = `<img src="${URL.createObjectURL(gifBlob)}" class="w-full h-48 object-cover" alt="Face ${faceIndex + 1} Animation">`;
+            container.classList.remove('hidden');
+            showFaceSlide(faceIndex, 1);
         }
     </script>
 </body>
