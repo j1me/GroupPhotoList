@@ -577,283 +577,110 @@
                     img.src = faceData;
                 });
 
-                // Define dancer poses (similar to dance party but for single dancer)
+                // Define realistic dancer poses
                 const dancerPoses = [
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-10 20v80l10 30 10-30V60h-20zm-5 80l-15 40h50l-15-40h-20z" fill="currentColor"/></svg>`,
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-20 30l20-10 20 10v60l-20 40-20-40V70z" fill="currentColor"/></svg>`,
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm0 20L30 80l20 20-20 40h40l-20-40 20-20-20-20z" fill="currentColor"/></svg>`
+                    // Standing pose with arms up
+                    `<svg viewBox="0 0 100 200">
+                        <path d="M50 30c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm-4 10c0 0-16 4-16 20 0 0 0 20 2 26 2 6 18 14 18 14s16-8 18-14c2-6 2-26 2-26 0-16-16-20-16-20h-8zm-6 80c0 0-10 20-10 40h40c0-20-10-40-10-40h-20z" fill="currentColor"/>
+                    </svg>`,
+                    // Dance pose with arms out
+                    `<svg viewBox="0 0 100 200">
+                        <path d="M50 30c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm-4 10c0 0-30 4-30 20 0 0 10 20 12 26 2 6 22 14 22 14s20-8 22-14c2-6 12-26 12-26 0-16-30-20-30-20h-8zm-6 80c0 0-10 20-10 40h40c0-20-10-40-10-40h-20z" fill="currentColor"/>
+                    </svg>`,
+                    // Dance pose with leg out
+                    `<svg viewBox="0 0 100 200">
+                        <path d="M50 30c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm-4 10c0 0-16 4-16 20 0 0 0 20 2 26 2 6 18 14 18 14s16-8 18-14c2-6 2-26 2-26 0-16-16-20-16-20h-8zm-16 80c0 0 0 40 10 40h20c10 0 10-40 10-40h-40z" fill="currentColor"/>
+                    </svg>`,
+                    // Dance pose with arms and leg out
+                    `<svg viewBox="0 0 100 200">
+                        <path d="M50 30c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm-4 10c0 0-30 4-30 20 0 0 10 20 12 26 2 6 22 14 22 14s20-8 22-14c2-6 12-26 12-26 0-16-30-20-30-20h-8zm-16 80c0 0 0 40 10 40h20c10 0 10-40 10-40h-40z" fill="currentColor"/>
+                    </svg>`
                 ];
 
-                for (let i = 0; i < frameCount; i++) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = canvasWidth;
-                    canvas.height = canvasHeight;
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-                    // Draw disco background
-                    const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-                    gradient.addColorStop(0, `hsl(${i * 18}, 70%, 20%)`);
-                    gradient.addColorStop(1, `hsl(${i * 18}, 70%, 10%)`);
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-                    // Draw grid lines
-                    ctx.strokeStyle = `hsla(${i * 18}, 70%, 40%, 0.3)`;
-                    ctx.lineWidth = 1;
-                    for (let x = 0; x < canvasWidth; x += 20) {
-                        ctx.beginPath();
-                        ctx.moveTo(x, canvasHeight/2);
-                        ctx.lineTo(x + canvasWidth/2, canvasHeight);
-                        ctx.stroke();
-                    }
-
-                    // Create dancer with face
-                    const dancerCanvas = document.createElement('canvas');
-                    dancerCanvas.width = 100;
-                    dancerCanvas.height = 200;
-                    const dancerCtx = dancerCanvas.getContext('2d');
-
-                    // Draw dancer body
-                    dancerCtx.fillStyle = `hsl(${i * 18}, 70%, 50%)`;
-                    const parser = new DOMParser();
-                    const svgDoc = parser.parseFromString(dancerPoses[i % dancerPoses.length], 'image/svg+xml');
-                    const pathData = svgDoc.querySelector('path').getAttribute('d');
-                    const path = new Path2D(pathData);
-                    dancerCtx.fill(path);
-
-                    // Draw face
-                    const faceSize = 40;
-                    dancerCtx.drawImage(img, 30, 0, faceSize, faceSize);
-
-                    // Add dancer to main canvas with animation
-                    const bounce = Math.sin(i * Math.PI / 5) * 10;
-                    const sway = Math.sin(i * Math.PI / 7) * 10;
+                // Add more dynamic movement patterns
+                function calculateDancerPosition(i, index, total, canvasWidth, canvasHeight) {
+                    const spacing = canvasWidth / (total + 1);
+                    const x = spacing * (index + 1);
+                    const baseY = canvasHeight * 0.6;  // Position dancers lower on the floor
                     
-                    ctx.save();
-                    ctx.translate(canvasWidth/2 + sway, canvasHeight/2 + bounce);
-                    ctx.scale(0.8, 0.8);
-                    ctx.translate(-50, -100);
-                    ctx.drawImage(dancerCanvas, 0, 0);
-                    ctx.restore();
-
-                    frames.push(canvas.toDataURL());
+                    // More dynamic movement patterns
+                    const time = i * Math.PI / 10;
+                    const bounce = Math.sin(time + index) * 20;  // Vertical bounce
+                    const sway = Math.sin(time * 0.8 + index * Math.PI / 2) * 15;  // Side-to-side sway
+                    const twist = Math.sin(time * 1.2 + index * Math.PI / 3) * 15;  // Twisting motion
+                    
+                    return {
+                        x: x + sway,
+                        y: baseY + bounce,
+                        rotation: twist,
+                        scale: 1 + Math.sin(time * 0.5) * 0.1  // Pulsing size
+                    };
                 }
 
-                createAnimationPreview(frames, index, loadingDiv, 'Dance');
-            } catch (error) {
-                console.error('Error generating dance animation:', error);
-                alert('Error generating dance animation. Please try again.');
-            }
-        }
+                // Update the dance party generation
+                async function generateDanceParty() {
+                    // ... existing setup code ...
 
-        // Load results when page loads
-        window.addEventListener('load', () => {
-            const originalImageData = localStorage.getItem('originalImage');
-            const facesData = JSON.parse(localStorage.getItem('faces') || '[]');
-            
-            if (originalImageData) {
-                document.getElementById('original-image').src = originalImageData;
-            }
+                    for (let i = 0; i < frameCount; i++) {
+                        // ... existing canvas setup ...
 
-            const facesGrid = document.getElementById('faces-grid');
-            facesData.forEach((faceData, index) => {
-                const faceCard = createFaceCard(faceData, index);
-                facesGrid.appendChild(faceCard);
-            });
+                        // Draw dancers with faces
+                        faceImages.forEach((faceImg, index) => {
+                            const pos = calculateDancerPosition(i, index, faceImages.length, canvasWidth, canvasHeight);
+                            const dancerPose = dancerPoses[i % dancerPoses.length];
+                            
+                            // Create dancer with face
+                            const dancerCanvas = document.createElement('canvas');
+                            dancerCanvas.width = 100;
+                            dancerCanvas.height = 200;
+                            const dancerCtx = dancerCanvas.getContext('2d');
 
-            // Update face count info
-            const faceCountInfo = document.getElementById('face-count-info');
-            const faceCount = facesData.length;
-            faceCountInfo.innerHTML = `
-                <h3 class="text-xl font-semibold text-gray-800 mb-2">Detection Results</h3>
-                <p class="text-gray-600">
-                    ${faceCount === 0 ? 'No faces detected' : 
-                      faceCount === 1 ? '1 face detected' : 
-                      `${faceCount} faces detected`} in your photo
-                </p>
-                ${faceCount > 0 ? '<p class="text-sm text-gray-500 mt-2">You can name each face and create a fun dance party animation!</p>' : ''}
-            `;
+                            // Draw dancer body with color
+                            dancerCtx.fillStyle = `hsl(${index * 360/faceImages.length}, 70%, 50%)`;
+                            const parser = new DOMParser();
+                            const svgDoc = parser.parseFromString(dancerPose, 'image/svg+xml');
+                            const pathData = svgDoc.querySelector('path').getAttribute('d');
+                            const path = new Path2D(pathData);
+                            dancerCtx.fill(path);
 
-            // Clear storage after loading
-            localStorage.removeItem('originalImage');
-            localStorage.removeItem('faces');
-        });
+                            // Draw face
+                            const faceSize = 40;
+                            dancerCtx.drawImage(faceImg, 30, 0, faceSize, faceSize);
 
-        // Update the GIF preview to show above the original image
-        function updateDancePreview(gifBlob) {
-            const overlay = document.getElementById('dance-preview-overlay');
-            const previewGif = document.getElementById('dance-preview-gif');
-            const danceButton = document.getElementById('dance-party-btn');
-            
-            previewGif.src = URL.createObjectURL(gifBlob);
-            overlay.classList.remove('hidden');
-            
-            // Update button to download
-            danceButton.innerHTML = `
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                Download Dance Party GIF
-            `;
-            danceButton.onclick = () => {
-                const link = document.createElement('a');
-                link.href = previewGif.src;
-                link.download = 'dance-party.gif';
-                link.click();
-            };
-        }
+                            // Add dancer to main canvas with animation
+                            ctx.save();
+                            ctx.translate(pos.x, pos.y);
+                            ctx.rotate(pos.rotation * Math.PI / 180);
+                            ctx.scale(pos.scale, pos.scale);
+                            ctx.translate(-50, -100);
+                            ctx.drawImage(dancerCanvas, 0, 0);
+                            ctx.restore();
+                        });
 
-        // Update the dance party generation to use the new preview
-        async function generateDanceParty() {
-            try {
-                // Debug the faces grid first
-                const facesGrid = document.getElementById('faces-grid');
-                console.log('Faces grid contents:', facesGrid.innerHTML);
+                        frames.push(canvas.toDataURL());
+                    }
 
-                // More specific selector for face cards
-                const faces = document.querySelectorAll('#faces-grid > div.bg-white');
-                console.log('Number of faces found:', faces.length);
-                
-                if (faces.length === 0) {
-                    console.error('No face cards found in the grid');
-                    alert('No faces found to create dance party. Please add some faces first.');
-                    return;
+                    // ... existing GIF generation code ...
                 }
 
-                // Create loading indicator
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = 'text-center p-4';
-                loadingDiv.innerHTML = `
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-2"></div>
-                    <p class="text-sm text-gray-600">Creating dance party...</p>
-                `;
-                document.getElementById('original-image').parentNode.appendChild(loadingDiv);
+                // Update the individual dance animation
+                async function generateBritneyDance(faceData, index) {
+                    // ... existing setup code ...
 
-                // Load all face images first with better debugging
-                const faceImages = await Promise.all(Array.from(faces).map((face, idx) => {
-                    return new Promise((resolve, reject) => {
-                        try {
-                            const img = new Image();
-                            img.onload = () => resolve(img);
-                            img.onerror = (e) => {
-                                console.error(`Image load error for face ${idx}:`, e);
-                                reject(e);
-                            };
-                            
-                            // Debug the face card structure
-                            console.log(`Face card ${idx} structure:`, face.outerHTML);
-                            
-                            // Find the first image in the card (it should be the face image)
-                            const faceImg = face.querySelector('img');
-                            
-                            if (!faceImg) {
-                                console.error(`No face image found for face ${idx}. Card contents:`, face.outerHTML);
-                                reject(new Error(`Face image not found in card ${idx}`));
-                                return;
-                            }
-                            
-                            // Verify it's the correct image
-                            if (!faceImg.alt || !faceImg.alt.includes('Face')) {
-                                console.warn(`Warning: Image found but alt text doesn't contain 'Face'. Using it anyway.`);
-                            }
-                            
-                            console.log(`Successfully found face image ${idx}:`, faceImg.src);
-                            img.src = faceImg.src;
-                        } catch (error) {
-                            console.error(`Error in face image loading for face ${idx}:`, error);
-                            reject(error);
-                        }
-                    });
-                }));
+                    for (let i = 0; i < frameCount; i++) {
+                        // ... existing canvas setup ...
 
-                // Define dancer poses with proper SVG paths
-                const dancerPoses = [
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-10 20v80l10 30 10-30V60h-20zm-5 80l-15 40h50l-15-40h-20z" fill="currentColor"/></svg>`,
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-20 30l20-10 20 10v60l-20 40-20-40V70z" fill="currentColor"/></svg>`,
-                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm0 20L30 80l20 20-20 40h40l-20-40 20-20-20-20z" fill="currentColor"/></svg>`
-                ];
-
-                const frames = [];
-                const frameCount = 20;
-                const canvasWidth = 800;
-                const canvasHeight = 600;
-
-                // Create frames
-                for (let i = 0; i < frameCount; i++) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = canvasWidth;
-                    canvas.height = canvasHeight;
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-                    // Draw disco floor
-                    const gradient = ctx.createLinearGradient(0, canvasHeight/2, 0, canvasHeight);
-                    gradient.addColorStop(0, `hsl(${i * 18}, 70%, 20%)`);
-                    gradient.addColorStop(1, `hsl(${i * 18}, 70%, 10%)`);
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-                    // Draw grid lines for disco floor
-                    ctx.strokeStyle = `hsla(${i * 18}, 70%, 40%, 0.3)`;
-                    ctx.lineWidth = 2;
-                    for (let x = 0; x < canvasWidth; x += 50) {
-                        ctx.beginPath();
-                        ctx.moveTo(x, canvasHeight/2);
-                        ctx.lineTo(x + canvasWidth/2, canvasHeight);
-                        ctx.stroke();
-                    }
-
-                    // Draw disco ball
-                    const ballX = canvasWidth/2;
-                    const ballY = 80;
-                    const ballRadius = 30;
-
-                    // Draw disco ball glow
-                    const ballGlow = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, ballRadius * 2);
-                    ballGlow.addColorStop(0, `hsla(${i * 18}, 70%, 60%, 0.3)`);
-                    ballGlow.addColorStop(1, 'transparent');
-                    ctx.fillStyle = ballGlow;
-                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-                    // Draw disco ball
-                    ctx.beginPath();
-                    ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                    
-                    // Draw light beams
-                    for (let beam = 0; beam < 8; beam++) {
-                        const angle = (beam * Math.PI / 4) + (i * Math.PI / 10);
-                        ctx.beginPath();
-                        ctx.moveTo(ballX, ballY);
-                        ctx.lineTo(
-                            ballX + Math.cos(angle) * canvasWidth,
-                            ballY + Math.sin(angle) * canvasHeight
-                        );
-                        ctx.strokeStyle = `hsla(${i * 18 + beam * 45}, 70%, 60%, 0.2)`;
-                        ctx.lineWidth = 30;
-                        ctx.stroke();
-                    }
-
-                    // Draw dancers with faces
-                    faceImages.forEach((faceImg, index) => {
-                        const dancerPose = dancerPoses[i % dancerPoses.length];
-                        
                         // Calculate dancer position with more dynamic movement
-                        const spacing = canvasWidth / (faceImages.length + 1);
-                        const x = spacing * (index + 1);
-                        const baseY = 350;
-                        const bounce = Math.sin(i * Math.PI / 5 + index) * 20;
-                        const sway = Math.sin(i * Math.PI / 7 + index * Math.PI / 3) * 15;
-                        const y = baseY + bounce;
-
-                        // Create temporary canvas for dancer
+                        const pos = calculateDancerPosition(i, 0, 1, canvasWidth, canvasHeight);
+                        
+                        // Create dancer with face
                         const dancerCanvas = document.createElement('canvas');
                         dancerCanvas.width = 100;
                         dancerCanvas.height = 200;
                         const dancerCtx = dancerCanvas.getContext('2d');
 
-                        // Draw dancer body
-                        dancerCtx.fillStyle = `hsl(${index * 360/faceImages.length}, 70%, 50%)`;
+                        // Draw dancer body with color
+                        dancerCtx.fillStyle = `hsl(${i * 18}, 70%, 50%)`;
                         const parser = new DOMParser();
                         const svgDoc = parser.parseFromString(dancerPoses[i % dancerPoses.length], 'image/svg+xml');
                         const pathData = svgDoc.querySelector('path').getAttribute('d');
@@ -862,179 +689,208 @@
 
                         // Draw face
                         const faceSize = 40;
-                        dancerCtx.drawImage(faceImg, 30, 0, faceSize, faceSize);
+                        dancerCtx.drawImage(img, 30, 0, faceSize, faceSize);
 
-                        // Draw complete dancer on main canvas
+                        // Add dancer to main canvas with animation
                         ctx.save();
-                        ctx.translate(x + sway, y);
-                        ctx.scale(1.2, 1.2);
+                        ctx.translate(pos.x, pos.y);
+                        ctx.rotate(pos.rotation * Math.PI / 180);
+                        ctx.scale(pos.scale, pos.scale);
                         ctx.translate(-50, -100);
                         ctx.drawImage(dancerCanvas, 0, 0);
                         ctx.restore();
-                    });
 
-                    frames.push(canvas.toDataURL());
-                }
-
-                // Create GIF using gif.js
-                const gif = new GIF({
-                    workers: 2,
-                    quality: 10,
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    workerScript: 'gif.worker.js'
-                });
-
-                // Add each frame to the GIF
-                frames.forEach(frameData => {
-                    const img = new Image();
-                    img.src = frameData;
-                    gif.addFrame(img, { delay: 100 }); // 100ms delay between frames
-                });
-
-                // When GIF is finished rendering
-                gif.on('finished', function(blob) {
-                    // Remove loading indicator
-                    if (loadingDiv.parentNode) {
-                        loadingDiv.parentNode.removeChild(loadingDiv);
+                        frames.push(canvas.toDataURL());
                     }
 
-                    // Update the preview with the generated GIF
-                    updateDancePreview(blob);
+                    // ... existing GIF generation code ...
+                }
+
+                // Load results when page loads
+                window.addEventListener('load', () => {
+                    const originalImageData = localStorage.getItem('originalImage');
+                    const facesData = JSON.parse(localStorage.getItem('faces') || '[]');
+                    
+                    if (originalImageData) {
+                        document.getElementById('original-image').src = originalImageData;
+                    }
+
+                    const facesGrid = document.getElementById('faces-grid');
+                    facesData.forEach((faceData, index) => {
+                        const faceCard = createFaceCard(faceData, index);
+                        facesGrid.appendChild(faceCard);
+                    });
+
+                    // Update face count info
+                    const faceCountInfo = document.getElementById('face-count-info');
+                    const faceCount = facesData.length;
+                    faceCountInfo.innerHTML = `
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Detection Results</h3>
+                        <p class="text-gray-600">
+                            ${faceCount === 0 ? 'No faces detected' : 
+                              faceCount === 1 ? '1 face detected' : 
+                              `${faceCount} faces detected`} in your photo
+                        </p>
+                        ${faceCount > 0 ? '<p class="text-sm text-gray-500 mt-2">You can name each face and create a fun dance party animation!</p>' : ''}
+                    `;
+
+                    // Clear storage after loading
+                    localStorage.removeItem('originalImage');
+                    localStorage.removeItem('faces');
                 });
 
-                // Start rendering the GIF
-                gif.render();
+                // Update the GIF preview to show above the original image
+                function updateDancePreview(gifBlob) {
+                    const overlay = document.getElementById('dance-preview-overlay');
+                    const previewGif = document.getElementById('dance-preview-gif');
+                    const danceButton = document.getElementById('dance-party-btn');
+                    
+                    previewGif.src = URL.createObjectURL(gifBlob);
+                    overlay.classList.remove('hidden');
+                    
+                    // Update button to download
+                    danceButton.innerHTML = `
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Download Dance Party GIF
+                    `;
+                    danceButton.onclick = () => {
+                        const link = document.createElement('a');
+                        link.href = previewGif.src;
+                        link.download = 'dance-party.gif';
+                        link.click();
+                    };
+                }
 
+                // Carousel functionality
+                let currentMainSlide = 0;
+                const mainCarousel = document.getElementById('main-carousel');
+                const mainPrev = document.getElementById('main-prev');
+                const mainNext = document.getElementById('main-next');
+
+                function showMainSlide(index) {
+                    const carousel = mainCarousel.querySelector('.flex');
+                    currentMainSlide = index;
+                    carousel.style.transform = `translateX(-${index * 100}%)`;
+                    updateMainIndicators();
+                }
+
+                function updateMainIndicators() {
+                    const indicators = document.querySelectorAll('#main-carousel + div button');
+                    indicators.forEach((indicator, index) => {
+                        indicator.classList.toggle('bg-blue-500', index === currentMainSlide);
+                        indicator.classList.toggle('bg-gray-300', index !== currentMainSlide);
+                    });
+                }
+
+                mainPrev.onclick = () => showMainSlide(Math.max(0, currentMainSlide - 1));
+                mainNext.onclick = () => showMainSlide(Math.min(1, currentMainSlide + 1));
+
+                // Expanded view functionality
+                let currentExpandedCarouselId = null;
+                
+                function expandView(carouselId) {
+                    const modal = document.getElementById('expanded-modal');
+                    const sourceCarousel = document.getElementById(carouselId);
+                    const expandedCarousel = document.getElementById('expanded-carousel');
+                    currentExpandedCarouselId = carouselId;
+                    
+                    // Clone the carousel content
+                    const content = sourceCarousel.querySelector('.flex').cloneNode(true);
+                    expandedCarousel.querySelector('.flex').replaceWith(content);
+                    
+                    // Get current slide index
+                    const currentSlide = carouselId === 'main-carousel' ? currentMainSlide : 
+                                       (currentFaceSlides[carouselId.split('-')[2]] || 0);
+                    
+                    // Show current slide
+                    content.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    
+                    // Show modal
+                    modal.classList.remove('hidden');
+                    
+                    // Update expanded view controls
+                    document.getElementById('expanded-prev').onclick = () => {
+                        const isMainCarousel = carouselId === 'main-carousel';
+                        const currentIndex = isMainCarousel ? currentMainSlide : 
+                                           currentFaceSlides[carouselId.split('-')[2]] || 0;
+                        const newIndex = Math.max(0, currentIndex - 1);
+                        
+                        if (isMainCarousel) {
+                            showMainSlide(newIndex);
+                        } else {
+                            showFaceSlide(carouselId.split('-')[2], newIndex);
+                        }
+                        content.style.transform = `translateX(-${newIndex * 100}%)`;
+                    };
+                    
+                    document.getElementById('expanded-next').onclick = () => {
+                        const isMainCarousel = carouselId === 'main-carousel';
+                        const currentIndex = isMainCarousel ? currentMainSlide : 
+                                           currentFaceSlides[carouselId.split('-')[2]] || 0;
+                        const newIndex = Math.min(1, currentIndex + 1);
+                        
+                        if (isMainCarousel) {
+                            showMainSlide(newIndex);
+                        } else {
+                            showFaceSlide(carouselId.split('-')[2], newIndex);
+                        }
+                        content.style.transform = `translateX(-${newIndex * 100}%)`;
+                    };
+
+                    // Add keyboard navigation
+                    document.addEventListener('keydown', handleExpandedKeyPress);
+                }
+
+                function handleExpandedKeyPress(e) {
+                    if (!document.getElementById('expanded-modal').classList.contains('hidden')) {
+                        if (e.key === 'Escape') {
+                            closeExpandedView();
+                        } else if (e.key === 'ArrowLeft') {
+                            document.getElementById('expanded-prev').click();
+                        } else if (e.key === 'ArrowRight') {
+                            document.getElementById('expanded-next').click();
+                        }
+                    }
+                }
+
+                function closeExpandedView() {
+                    document.getElementById('expanded-modal').classList.add('hidden');
+                    document.removeEventListener('keydown', handleExpandedKeyPress);
+                    currentExpandedCarouselId = null;
+                }
+
+                // Update the individual face GIF preview
+                function updateFaceGifPreview(faceIndex, gifBlob) {
+                    const container = document.getElementById(`face-gif-container-${faceIndex}`);
+                    container.innerHTML = `<img src="${URL.createObjectURL(gifBlob)}" class="w-full h-48 object-cover" alt="Face ${faceIndex + 1} Animation">`;
+                    container.classList.remove('hidden');
+                    showFaceSlide(faceIndex, 1);
+                }
+
+                // Add face carousel functionality
+                let currentFaceSlides = {};
+
+                function showFaceSlide(faceIndex, slideIndex) {
+                    const carousel = document.querySelector(`#face-carousel-${faceIndex} .flex`);
+                    currentFaceSlides[faceIndex] = slideIndex;
+                    carousel.style.transform = `translateX(-${slideIndex * 100}%)`;
+                    updateFaceIndicators(faceIndex);
+                }
+
+                function updateFaceIndicators(faceIndex) {
+                    const indicators = document.querySelectorAll(`#face-carousel-${faceIndex} + div button`);
+                    const currentSlide = currentFaceSlides[faceIndex] || 0;
+                    indicators.forEach((indicator, index) => {
+                        indicator.classList.toggle('bg-blue-500', index === currentSlide);
+                        indicator.classList.toggle('bg-gray-300', index !== currentSlide);
+                    });
+                }
             } catch (error) {
-                console.error('Error generating dance party:', error);
-                alert('Error creating dance party. Please try again.');
+                console.error('Error generating dance animation:', error);
+                alert('Error generating dance animation. Please try again.');
             }
-        }
-
-        // Carousel functionality
-        let currentMainSlide = 0;
-        const mainCarousel = document.getElementById('main-carousel');
-        const mainPrev = document.getElementById('main-prev');
-        const mainNext = document.getElementById('main-next');
-
-        function showMainSlide(index) {
-            const carousel = mainCarousel.querySelector('.flex');
-            currentMainSlide = index;
-            carousel.style.transform = `translateX(-${index * 100}%)`;
-            updateMainIndicators();
-        }
-
-        function updateMainIndicators() {
-            const indicators = document.querySelectorAll('#main-carousel + div button');
-            indicators.forEach((indicator, index) => {
-                indicator.classList.toggle('bg-blue-500', index === currentMainSlide);
-                indicator.classList.toggle('bg-gray-300', index !== currentMainSlide);
-            });
-        }
-
-        mainPrev.onclick = () => showMainSlide(Math.max(0, currentMainSlide - 1));
-        mainNext.onclick = () => showMainSlide(Math.min(1, currentMainSlide + 1));
-
-        // Expanded view functionality
-        let currentExpandedCarouselId = null;
-        
-        function expandView(carouselId) {
-            const modal = document.getElementById('expanded-modal');
-            const sourceCarousel = document.getElementById(carouselId);
-            const expandedCarousel = document.getElementById('expanded-carousel');
-            currentExpandedCarouselId = carouselId;
-            
-            // Clone the carousel content
-            const content = sourceCarousel.querySelector('.flex').cloneNode(true);
-            expandedCarousel.querySelector('.flex').replaceWith(content);
-            
-            // Get current slide index
-            const currentSlide = carouselId === 'main-carousel' ? currentMainSlide : 
-                               (currentFaceSlides[carouselId.split('-')[2]] || 0);
-            
-            // Show current slide
-            content.style.transform = `translateX(-${currentSlide * 100}%)`;
-            
-            // Show modal
-            modal.classList.remove('hidden');
-            
-            // Update expanded view controls
-            document.getElementById('expanded-prev').onclick = () => {
-                const isMainCarousel = carouselId === 'main-carousel';
-                const currentIndex = isMainCarousel ? currentMainSlide : 
-                                   currentFaceSlides[carouselId.split('-')[2]] || 0;
-                const newIndex = Math.max(0, currentIndex - 1);
-                
-                if (isMainCarousel) {
-                    showMainSlide(newIndex);
-                } else {
-                    showFaceSlide(carouselId.split('-')[2], newIndex);
-                }
-                content.style.transform = `translateX(-${newIndex * 100}%)`;
-            };
-            
-            document.getElementById('expanded-next').onclick = () => {
-                const isMainCarousel = carouselId === 'main-carousel';
-                const currentIndex = isMainCarousel ? currentMainSlide : 
-                                   currentFaceSlides[carouselId.split('-')[2]] || 0;
-                const newIndex = Math.min(1, currentIndex + 1);
-                
-                if (isMainCarousel) {
-                    showMainSlide(newIndex);
-                } else {
-                    showFaceSlide(carouselId.split('-')[2], newIndex);
-                }
-                content.style.transform = `translateX(-${newIndex * 100}%)`;
-            };
-
-            // Add keyboard navigation
-            document.addEventListener('keydown', handleExpandedKeyPress);
-        }
-
-        function handleExpandedKeyPress(e) {
-            if (!document.getElementById('expanded-modal').classList.contains('hidden')) {
-                if (e.key === 'Escape') {
-                    closeExpandedView();
-                } else if (e.key === 'ArrowLeft') {
-                    document.getElementById('expanded-prev').click();
-                } else if (e.key === 'ArrowRight') {
-                    document.getElementById('expanded-next').click();
-                }
-            }
-        }
-
-        function closeExpandedView() {
-            document.getElementById('expanded-modal').classList.add('hidden');
-            document.removeEventListener('keydown', handleExpandedKeyPress);
-            currentExpandedCarouselId = null;
-        }
-
-        // Update the individual face GIF preview
-        function updateFaceGifPreview(faceIndex, gifBlob) {
-            const container = document.getElementById(`face-gif-container-${faceIndex}`);
-            container.innerHTML = `<img src="${URL.createObjectURL(gifBlob)}" class="w-full h-48 object-cover" alt="Face ${faceIndex + 1} Animation">`;
-            container.classList.remove('hidden');
-            showFaceSlide(faceIndex, 1);
-        }
-
-        // Add face carousel functionality
-        let currentFaceSlides = {};
-
-        function showFaceSlide(faceIndex, slideIndex) {
-            const carousel = document.querySelector(`#face-carousel-${faceIndex} .flex`);
-            currentFaceSlides[faceIndex] = slideIndex;
-            carousel.style.transform = `translateX(-${slideIndex * 100}%)`;
-            updateFaceIndicators(faceIndex);
-        }
-
-        function updateFaceIndicators(faceIndex) {
-            const indicators = document.querySelectorAll(`#face-carousel-${faceIndex} + div button`);
-            const currentSlide = currentFaceSlides[faceIndex] || 0;
-            indicators.forEach((indicator, index) => {
-                indicator.classList.toggle('bg-blue-500', index === currentSlide);
-                indicator.classList.toggle('bg-gray-300', index !== currentSlide);
-            });
         }
     </script>
 </body>
