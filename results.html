@@ -483,7 +483,8 @@
                         const img = new Image();
                         img.onload = () => resolve(img);
                         img.onerror = reject;
-                        const faceImg = face.querySelector('img[alt^="Face"]');
+                        // Find any image in the face card
+                        const faceImg = face.querySelector('img');
                         if (!faceImg) {
                             reject(new Error('Face image not found'));
                             return;
