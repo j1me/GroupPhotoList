@@ -295,6 +295,9 @@
                 <button class="w-full px-4 py-2 text-left hover:bg-purple-50 text-sm" onclick="generateSpinningGif('${faceData}', ${index})">
                     🌀 Spinning Effect
                 </button>
+                <button class="w-full px-4 py-2 text-left hover:bg-purple-50 text-sm" onclick="generateBritneyDance('${faceData}', ${index})">
+                    💃 Dance Like Britney
+                </button>
             `;
 
             gifButton.onclick = () => {
@@ -547,6 +550,99 @@
             } catch (error) {
                 console.error('Error generating disco effect:', error);
                 alert('Error generating disco effect. Please try again.');
+            }
+        }
+
+        // Add Britney dance animation function
+        async function generateBritneyDance(faceData, index) {
+            try {
+                // Create loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'text-center p-4';
+                loadingDiv.innerHTML = `
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
+                    <p class="text-sm text-gray-600">Generating dance animation...</p>
+                `;
+                document.getElementById('disco-grid').appendChild(loadingDiv);
+
+                const frames = [];
+                const frameCount = 20;
+                const canvasWidth = 200;
+                const canvasHeight = 200;
+                
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = faceData;
+                });
+
+                // Define dancer poses (similar to dance party but for single dancer)
+                const dancerPoses = [
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-10 20v80l10 30 10-30V60h-20zm-5 80l-15 40h50l-15-40h-20z" fill="currentColor"/></svg>`,
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm-20 30l20-10 20 10v60l-20 40-20-40V70z" fill="currentColor"/></svg>`,
+                    `<svg viewBox="0 0 100 200"><path d="M50 40c11 0 20-9 20-20S61 0 50 0 30 9 30 20s9 20 20 20zm0 20L30 80l20 20-20 40h40l-20-40 20-20-20-20z" fill="currentColor"/></svg>`
+                ];
+
+                for (let i = 0; i < frameCount; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                    // Draw disco background
+                    const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+                    gradient.addColorStop(0, `hsl(${i * 18}, 70%, 20%)`);
+                    gradient.addColorStop(1, `hsl(${i * 18}, 70%, 10%)`);
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    // Draw grid lines
+                    ctx.strokeStyle = `hsla(${i * 18}, 70%, 40%, 0.3)`;
+                    ctx.lineWidth = 1;
+                    for (let x = 0; x < canvasWidth; x += 20) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, canvasHeight/2);
+                        ctx.lineTo(x + canvasWidth/2, canvasHeight);
+                        ctx.stroke();
+                    }
+
+                    // Create dancer with face
+                    const dancerCanvas = document.createElement('canvas');
+                    dancerCanvas.width = 100;
+                    dancerCanvas.height = 200;
+                    const dancerCtx = dancerCanvas.getContext('2d');
+
+                    // Draw dancer body
+                    dancerCtx.fillStyle = `hsl(${i * 18}, 70%, 50%)`;
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(dancerPoses[i % dancerPoses.length], 'image/svg+xml');
+                    const pathData = svgDoc.querySelector('path').getAttribute('d');
+                    const path = new Path2D(pathData);
+                    dancerCtx.fill(path);
+
+                    // Draw face
+                    const faceSize = 40;
+                    dancerCtx.drawImage(img, 30, 0, faceSize, faceSize);
+
+                    // Add dancer to main canvas with animation
+                    const bounce = Math.sin(i * Math.PI / 5) * 10;
+                    const sway = Math.sin(i * Math.PI / 7) * 10;
+                    
+                    ctx.save();
+                    ctx.translate(canvasWidth/2 + sway, canvasHeight/2 + bounce);
+                    ctx.scale(0.8, 0.8);
+                    ctx.translate(-50, -100);
+                    ctx.drawImage(dancerCanvas, 0, 0);
+                    ctx.restore();
+
+                    frames.push(canvas.toDataURL());
+                }
+
+                createAnimationPreview(frames, index, loadingDiv, 'Dance');
+            } catch (error) {
+                console.error('Error generating dance animation:', error);
+                alert('Error generating dance animation. Please try again.');
             }
         }
 
