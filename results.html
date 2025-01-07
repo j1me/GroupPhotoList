@@ -60,13 +60,45 @@
 
                 <!-- Results Area -->
                 <div id="results">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-semibold text-gray-800">Original Photo</h2>
-                        <button onclick="generatePDF()" class="bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300">
-                            Generate PDF List
-                        </button>
+                    <div class="flex flex-col md:flex-row gap-6 mb-8">
+                        <!-- Left side: Original photo -->
+                        <div class="md:w-1/2">
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Original Photo</h2>
+                            <div class="relative group">
+                                <img id="original-image" class="w-full rounded-lg shadow-md" src="" alt="Original photo">
+                                <!-- Dance party preview overlay (hidden by default) -->
+                                <div id="dance-preview-overlay" class="hidden absolute inset-0 bg-black bg-opacity-50 rounded-lg">
+                                    <div class="p-4">
+                                        <img id="dance-preview-gif" class="w-full rounded-lg" src="" alt="Dance Party Preview">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right side: Info and buttons -->
+                        <div class="md:w-1/2">
+                            <div class="bg-white p-6 rounded-lg shadow-md">
+                                <div id="face-count-info" class="mb-6">
+                                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Detection Results</h3>
+                                    <p class="text-gray-600">Processing your photo...</p>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <button onclick="generatePDF()" class="w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-3 px-4 rounded transition duration-300 flex items-center justify-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                        Generate PDF List
+                                    </button>
+
+                                    <button id="dance-party-btn" onclick="generateDanceParty()" class="w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-3 px-4 rounded transition duration-300 flex items-center justify-center">
+                                        <span class="mr-2">💃</span>
+                                        Generate Dance Party
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <img id="original-image" class="w-full rounded-lg shadow-md mb-8" src="" alt="Original photo">
                     
                     <h2 class="text-2xl font-semibold text-gray-800 mb-4">Detected Faces</h2>
                     <div id="faces-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
@@ -453,19 +485,49 @@
                 facesGrid.appendChild(faceCard);
             });
 
+            // Update face count info
+            const faceCountInfo = document.getElementById('face-count-info');
+            const faceCount = facesData.length;
+            faceCountInfo.innerHTML = `
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Detection Results</h3>
+                <p class="text-gray-600">
+                    ${faceCount === 0 ? 'No faces detected' : 
+                      faceCount === 1 ? '1 face detected' : 
+                      `${faceCount} faces detected`} in your photo
+                </p>
+                ${faceCount > 0 ? '<p class="text-sm text-gray-500 mt-2">You can name each face and create a fun dance party animation!</p>' : ''}
+            `;
+
             // Clear storage after loading
             localStorage.removeItem('originalImage');
             localStorage.removeItem('faces');
         });
 
-        // Add a "Dance Party" button to the main results area
-        const dancePartyButton = document.createElement('button');
-        dancePartyButton.className = 'ml-4 bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300';
-        dancePartyButton.innerHTML = '💃 Dance Party';
-        dancePartyButton.onclick = generateDanceParty;
-        document.querySelector('#results .flex.justify-between').appendChild(dancePartyButton);
+        // Update the GIF preview to show above the original image
+        function updateDancePreview(gifBlob) {
+            const overlay = document.getElementById('dance-preview-overlay');
+            const previewGif = document.getElementById('dance-preview-gif');
+            const danceButton = document.getElementById('dance-party-btn');
+            
+            previewGif.src = URL.createObjectURL(gifBlob);
+            overlay.classList.remove('hidden');
+            
+            // Update button to download
+            danceButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download Dance Party GIF
+            `;
+            danceButton.onclick = () => {
+                const link = document.createElement('a');
+                link.href = previewGif.src;
+                link.download = 'dance-party.gif';
+                link.click();
+            };
+        }
 
-        // Add the new dance party function
+        // Update the dance party generation to use the new preview
         async function generateDanceParty() {
             try {
                 // Debug the faces grid first
