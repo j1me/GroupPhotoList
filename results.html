@@ -5,26 +5,8 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://unpkg.com/gifshot/build/gifshot.min.js"></script>
-    <script>
-        // Verify gifshot is loaded
-        window.addEventListener('load', function() {
-            if (typeof gifshot === 'undefined') {
-                console.error('Gifshot library failed to load. Loading from backup source...');
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.4.5/gifshot.min.js';
-                script.onload = function() {
-                    console.log('Gifshot loaded successfully from backup source');
-                };
-                script.onerror = function() {
-                    console.error('Failed to load Gifshot from backup source');
-                };
-                document.head.appendChild(script);
-            } else {
-                console.log('Gifshot loaded successfully');
-            }
-        });
-    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js"></script>
     <style>
         .gradient-bg { background: linear-gradient(180deg, #EBF4FF 0%, #F3E8FF 100%); }
         .face-name-input {
@@ -672,70 +654,68 @@
                 loadingMessage.textContent = 'Generating GIF...';
                 previewContainer.appendChild(loadingMessage);
 
+                // Create GIF using gif.js
+                const gif = new GIF({
+                    workers: 2,
+                    quality: 10,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    workerScript: 'gif.worker.js'
+                });
+
+                // Add each frame to the GIF
+                frames.forEach(frameData => {
+                    const img = new Image();
+                    img.src = frameData;
+                    gif.addFrame(img, { delay: 100 }); // 100ms delay between frames
+                });
+
                 // Create preview image element
                 const previewImg = document.createElement('img');
                 previewImg.className = 'w-full rounded-lg';
                 previewContainer.appendChild(previewImg);
 
-                // Create GIF using gifshot
-                if (typeof gifshot === 'undefined') {
-                    loadingMessage.textContent = 'Error: GIF generation library not available. Please try again in a few moments.';
-                    console.error('Gifshot library not available');
-                    return;
-                }
+                // When GIF is finished rendering
+                gif.on('finished', function(blob) {
+                    // Update the preview with the generated GIF
+                    previewImg.src = URL.createObjectURL(blob);
+                    loadingMessage.textContent = 'Dance Party GIF Ready!';
+                    
+                    // Add download button for GIF
+                    const downloadButton = document.createElement('button');
+                    downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
+                    downloadButton.innerHTML = 'Download Dance Party GIF';
+                    downloadButton.onclick = () => {
+                        const link = document.createElement('a');
+                        link.href = previewImg.src;
+                        link.download = 'dance-party.gif';
+                        link.click();
+                    };
+                    previewContainer.appendChild(downloadButton);
 
-                gifshot.createGIF({
-                    images: frames,
-                    gifWidth: canvasWidth,
-                    gifHeight: canvasHeight,
-                    interval: 0.1, // 100ms between frames
-                    sampleInterval: 10, // Reduce quality for better performance
-                    numWorkers: 2, // Use 2 workers for better performance
-                    progressCallback: function(captureProgress) {
-                        loadingMessage.textContent = `Creating GIF: ${Math.round(captureProgress * 100)}%`;
-                    }
-                }, function(obj) {
-                    if(!obj.error) {
-                        // Update the preview with the generated GIF
-                        previewImg.src = obj.image;
-                        loadingMessage.textContent = 'Dance Party GIF Ready!';
+                    // Add download frames button as a backup
+                    const downloadFramesButton = document.createElement('button');
+                    downloadFramesButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
+                    downloadFramesButton.innerHTML = 'Download Individual Frames';
+                    downloadFramesButton.onclick = () => {
+                        const zip = new JSZip();
+                        frames.forEach((frame, i) => {
+                            const base64Data = frame.replace(/^data:image\/png;base64,/, '');
+                            zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
+                        });
                         
-                        // Add download button for GIF
-                        const downloadButton = document.createElement('button');
-                        downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
-                        downloadButton.innerHTML = 'Download Dance Party GIF';
-                        downloadButton.onclick = () => {
+                        zip.generateAsync({ type: 'blob' }).then(blob => {
                             const link = document.createElement('a');
-                            link.href = obj.image;
-                            link.download = 'dance-party.gif';
+                            link.href = URL.createObjectURL(blob);
+                            link.download = 'dance-party-frames.zip';
                             link.click();
-                        };
-                        previewContainer.appendChild(downloadButton);
-
-                        // Add download frames button as a backup
-                        const downloadFramesButton = document.createElement('button');
-                        downloadFramesButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
-                        downloadFramesButton.innerHTML = 'Download Individual Frames';
-                        downloadFramesButton.onclick = () => {
-                            const zip = new JSZip();
-                            frames.forEach((frame, i) => {
-                                const base64Data = frame.replace(/^data:image\/png;base64,/, '');
-                                zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
-                            });
-                            
-                            zip.generateAsync({ type: 'blob' }).then(blob => {
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = 'dance-party-frames.zip';
-                                link.click();
-                            });
-                        };
-                        previewContainer.appendChild(downloadFramesButton);
-                    } else {
-                        loadingMessage.textContent = 'Error creating GIF. Please try again.';
-                        console.error('Error creating GIF:', obj.error);
-                    }
+                        });
+                    };
+                    previewContainer.appendChild(downloadFramesButton);
                 });
+
+                // Start rendering the GIF
+                gif.render();
 
                 // Show preview
                 const discoSection = document.getElementById('disco-section');
