@@ -145,7 +145,14 @@
 
     <!-- Modal for expanded view -->
     <div id="expanded-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center">
-        <div class="max-w-4xl w-full mx-4">
+        <div class="max-w-4xl w-full mx-4 relative">
+            <!-- Close button - moved outside carousel for better visibility -->
+            <button onclick="closeExpandedView()" class="absolute -top-12 right-0 p-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all z-50">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+            
             <div class="relative">
                 <div id="expanded-carousel" class="relative overflow-hidden rounded-lg">
                     <div class="flex transition-transform duration-300">
@@ -153,23 +160,22 @@
                     </div>
                     <!-- Expanded view controls -->
                     <div class="absolute inset-0 flex items-center justify-between p-4">
-                        <button id="expanded-prev" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+                        <button id="expanded-prev" class="p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                             </svg>
                         </button>
-                        <button id="expanded-next" class="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+                        <button id="expanded-next" class="p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                             </svg>
                         </button>
                     </div>
-                    <!-- Close button -->
-                    <button onclick="closeExpandedView()" class="absolute top-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
+                </div>
+                <!-- Expanded view indicators -->
+                <div class="absolute -bottom-8 left-0 right-0 flex justify-center gap-2">
+                    <button class="w-2.5 h-2.5 rounded-full bg-gray-400 hover:bg-gray-300 transition-colors" onclick="showExpandedSlide(0)"></button>
+                    <button class="w-2.5 h-2.5 rounded-full bg-gray-400 hover:bg-gray-300 transition-colors" onclick="showExpandedSlide(1)"></button>
                 </div>
             </div>
         </div>
@@ -187,7 +193,9 @@
             carouselContainer.innerHTML = `
                 <div id="face-carousel-${index}" class="relative overflow-hidden rounded">
                     <div class="flex transition-transform duration-300">
-                        <img src="${faceData}" class="w-full h-48 object-cover shrink-0" alt="Face ${index + 1}" data-face-index="${index}">
+                        <div class="w-full h-48 shrink-0">
+                            <img src="${faceData}" class="w-full h-48 object-cover" alt="Face ${index + 1}" data-face-index="${index}">
+                        </div>
                         <div class="w-full h-48 shrink-0 hidden" id="face-gif-container-${index}">
                             <!-- GIF will be added here -->
                         </div>
@@ -833,63 +841,85 @@
         mainNext.onclick = () => showMainSlide(Math.min(1, currentMainSlide + 1));
 
         // Expanded view functionality
+        let currentExpandedCarouselId = null;
+        
         function expandView(carouselId) {
             const modal = document.getElementById('expanded-modal');
             const sourceCarousel = document.getElementById(carouselId);
             const expandedCarousel = document.getElementById('expanded-carousel');
+            currentExpandedCarouselId = carouselId;
             
             // Clone the carousel content
             const content = sourceCarousel.querySelector('.flex').cloneNode(true);
             expandedCarousel.querySelector('.flex').replaceWith(content);
             
+            // Get current slide index
+            const currentSlide = carouselId === 'main-carousel' ? currentMainSlide : 
+                               (currentFaceSlides[carouselId.split('-')[2]] || 0);
+            
             // Show current slide
-            content.style.transform = `translateX(-${currentMainSlide * 100}%)`;
+            content.style.transform = `translateX(-${currentSlide * 100}%)`;
             
             // Show modal
             modal.classList.remove('hidden');
             
             // Update expanded view controls
             document.getElementById('expanded-prev').onclick = () => {
-                const newIndex = Math.max(0, currentMainSlide - 1);
-                showMainSlide(newIndex);
+                const isMainCarousel = carouselId === 'main-carousel';
+                const currentIndex = isMainCarousel ? currentMainSlide : 
+                                   currentFaceSlides[carouselId.split('-')[2]] || 0;
+                const newIndex = Math.max(0, currentIndex - 1);
+                
+                if (isMainCarousel) {
+                    showMainSlide(newIndex);
+                } else {
+                    showFaceSlide(carouselId.split('-')[2], newIndex);
+                }
                 content.style.transform = `translateX(-${newIndex * 100}%)`;
             };
             
             document.getElementById('expanded-next').onclick = () => {
-                const newIndex = Math.min(1, currentMainSlide + 1);
-                showMainSlide(newIndex);
+                const isMainCarousel = carouselId === 'main-carousel';
+                const currentIndex = isMainCarousel ? currentMainSlide : 
+                                   currentFaceSlides[carouselId.split('-')[2]] || 0;
+                const newIndex = Math.min(1, currentIndex + 1);
+                
+                if (isMainCarousel) {
+                    showMainSlide(newIndex);
+                } else {
+                    showFaceSlide(carouselId.split('-')[2], newIndex);
+                }
                 content.style.transform = `translateX(-${newIndex * 100}%)`;
             };
+
+            // Add keyboard navigation
+            document.addEventListener('keydown', handleExpandedKeyPress);
+        }
+
+        function handleExpandedKeyPress(e) {
+            if (!document.getElementById('expanded-modal').classList.contains('hidden')) {
+                if (e.key === 'Escape') {
+                    closeExpandedView();
+                } else if (e.key === 'ArrowLeft') {
+                    document.getElementById('expanded-prev').click();
+                } else if (e.key === 'ArrowRight') {
+                    document.getElementById('expanded-next').click();
+                }
+            }
         }
 
         function closeExpandedView() {
             document.getElementById('expanded-modal').classList.add('hidden');
+            document.removeEventListener('keydown', handleExpandedKeyPress);
+            currentExpandedCarouselId = null;
         }
 
-        // Update the GIF preview to work with carousel
-        function updateDancePreview(gifBlob) {
-            const previewGif = document.getElementById('dance-preview-gif');
-            const danceButton = document.getElementById('dance-party-btn');
-            
-            previewGif.src = URL.createObjectURL(gifBlob);
-            previewGif.classList.remove('hidden');
-            
-            // Update button to download
-            danceButton.innerHTML = `
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                Download Dance Party GIF
-            `;
-            danceButton.onclick = () => {
-                const link = document.createElement('a');
-                link.href = previewGif.src;
-                link.download = 'dance-party.gif';
-                link.click();
-            };
-
-            // Show second slide
-            showMainSlide(1);
+        // Update the individual face GIF preview
+        function updateFaceGifPreview(faceIndex, gifBlob) {
+            const container = document.getElementById(`face-gif-container-${faceIndex}`);
+            container.innerHTML = `<img src="${URL.createObjectURL(gifBlob)}" class="w-full h-48 object-cover" alt="Face ${faceIndex + 1} Animation">`;
+            container.classList.remove('hidden');
+            showFaceSlide(faceIndex, 1);
         }
 
         // Add face carousel functionality
@@ -909,14 +939,6 @@
                 indicator.classList.toggle('bg-blue-500', index === currentSlide);
                 indicator.classList.toggle('bg-gray-300', index !== currentSlide);
             });
-        }
-
-        // Update the individual face GIF preview
-        function updateFaceGifPreview(faceIndex, gifBlob) {
-            const container = document.getElementById(`face-gif-container-${faceIndex}`);
-            container.innerHTML = `<img src="${URL.createObjectURL(gifBlob)}" class="w-full h-48 object-cover" alt="Face ${faceIndex + 1} Animation">`;
-            container.classList.remove('hidden');
-            showFaceSlide(faceIndex, 1);
         }
     </script>
 </body>
