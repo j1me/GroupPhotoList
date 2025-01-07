@@ -468,8 +468,19 @@
         // Add the new dance party function
         async function generateDanceParty() {
             try {
-                const faces = document.querySelectorAll('#faces-grid .bg-white');
-                if (faces.length === 0) return;
+                // Debug the faces grid first
+                const facesGrid = document.getElementById('faces-grid');
+                console.log('Faces grid contents:', facesGrid.innerHTML);
+
+                // More specific selector for face cards
+                const faces = document.querySelectorAll('#faces-grid > div.bg-white');
+                console.log('Number of faces found:', faces.length);
+                
+                if (faces.length === 0) {
+                    console.error('No face cards found in the grid');
+                    alert('No faces found to create dance party. Please add some faces first.');
+                    return;
+                }
 
                 // Create loading indicator
                 const loadingDiv = document.createElement('div');
@@ -480,24 +491,64 @@
                 `;
                 document.getElementById('disco-grid').appendChild(loadingDiv);
 
-                // Load all face images first
-                const faceImages = await Promise.all(Array.from(faces).map(face => {
+                // Load all face images first with better debugging
+                const faceImages = await Promise.all(Array.from(faces).map((face, idx) => {
                     return new Promise((resolve, reject) => {
                         try {
                             const img = new Image();
                             img.onload = () => resolve(img);
-                            img.onerror = reject;
-                            // Find face image using the correct selector
-                            const faceImg = face.querySelector('img[alt^="Face"]');
+                            img.onerror = (e) => {
+                                console.error(`Image load error for face ${idx}:`, e);
+                                reject(e);
+                            };
+                            
+                            // Debug the face card structure
+                            console.log(`Face card ${idx} structure:`, face.outerHTML);
+                            
+                            // Try multiple selector strategies
+                            let faceImg = null;
+                            
+                            // Strategy 1: Direct child img
+                            const directChildren = face.children;
+                            for (let child of directChildren) {
+                                if (child.tagName === 'IMG') {
+                                    faceImg = child;
+                                    console.log(`Strategy 1 found image for face ${idx}`);
+                                    break;
+                                }
+                            }
+                            
+                            // Strategy 2: Any img with Face in alt
                             if (!faceImg) {
-                                console.error('Face card structure:', face.innerHTML);
-                                reject(new Error('Face image not found'));
+                                const allImages = face.getElementsByTagName('img');
+                                for (let img of allImages) {
+                                    if (img.alt && img.alt.includes('Face')) {
+                                        faceImg = img;
+                                        console.log(`Strategy 2 found image for face ${idx}`);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // Strategy 3: First img element
+                            if (!faceImg) {
+                                const firstImg = face.getElementsByTagName('img')[0];
+                                if (firstImg) {
+                                    faceImg = firstImg;
+                                    console.log(`Strategy 3 found image for face ${idx}`);
+                                }
+                            }
+                            
+                            if (!faceImg) {
+                                console.error(`No face image found for face ${idx}. Card contents:`, face.outerHTML);
+                                reject(new Error(`Face image not found in card ${idx}`));
                                 return;
                             }
-                            console.log('Found face image:', faceImg.src);
+                            
+                            console.log(`Successfully found face image ${idx}:`, faceImg.src);
                             img.src = faceImg.src;
                         } catch (error) {
-                            console.error('Error in face image loading:', error);
+                            console.error(`Error in face image loading for face ${idx}:`, error);
                             reject(error);
                         }
                     });
@@ -623,45 +674,74 @@
                 previewTitle.textContent = '🪩 Dance Party';
                 previewContainer.appendChild(previewTitle);
 
-                const previewCanvas = document.createElement('canvas');
-                previewCanvas.width = canvasWidth;
-                previewCanvas.height = canvasHeight;
-                previewCanvas.className = 'w-full rounded-lg';
-                previewContainer.appendChild(previewCanvas);
+                // Create loading message
+                const loadingMessage = document.createElement('p');
+                loadingMessage.className = 'text-sm text-gray-600 mb-4';
+                loadingMessage.textContent = 'Generating GIF...';
+                previewContainer.appendChild(loadingMessage);
 
-                const downloadButton = document.createElement('button');
-                downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
-                downloadButton.innerHTML = 'Download Dance Party';
-                downloadButton.onclick = () => {
-                    const zip = new JSZip();
-                    frames.forEach((frame, i) => {
-                        const base64Data = frame.replace(/^data:image\/png;base64,/, '');
-                        zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
-                    });
-                    
-                    zip.generateAsync({ type: 'blob' }).then(blob => {
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(blob);
-                        link.download = 'dance-party-frames.zip';
-                        link.click();
-                    });
-                };
-                previewContainer.appendChild(downloadButton);
+                // Create GIF using gif.js
+                const gif = new GIF({
+                    workers: 2,
+                    quality: 10,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                });
 
-                // Animate preview
-                let currentFrame = 0;
-                const ctx = previewCanvas.getContext('2d');
-                const animate = () => {
+                // Add each frame to the GIF
+                frames.forEach(frameData => {
                     const img = new Image();
-                    img.onload = () => {
-                        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                        ctx.drawImage(img, 0, 0);
-                        currentFrame = (currentFrame + 1) % frames.length;
-                        setTimeout(() => requestAnimationFrame(animate), 100);
+                    img.src = frameData;
+                    gif.addFrame(img, { delay: 100 }); // 100ms delay between frames
+                });
+
+                // Create preview image element
+                const previewImg = document.createElement('img');
+                previewImg.className = 'w-full rounded-lg';
+                previewContainer.appendChild(previewImg);
+
+                // When GIF is finished rendering
+                gif.on('finished', function(blob) {
+                    // Update the preview with the generated GIF
+                    previewImg.src = URL.createObjectURL(blob);
+                    loadingMessage.textContent = 'Dance Party GIF Ready!';
+                    
+                    // Add download button for GIF
+                    const downloadButton = document.createElement('button');
+                    downloadButton.className = 'w-full bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-4';
+                    downloadButton.innerHTML = 'Download Dance Party GIF';
+                    downloadButton.onclick = () => {
+                        const link = document.createElement('a');
+                        link.href = previewImg.src;
+                        link.download = 'dance-party.gif';
+                        link.click();
                     };
-                    img.src = frames[currentFrame];
-                };
-                animate();
+                    previewContainer.appendChild(downloadButton);
+
+                    // Add download frames button as a backup
+                    const downloadFramesButton = document.createElement('button');
+                    downloadFramesButton.className = 'w-full bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold py-2 px-4 rounded transition duration-300 mt-2';
+                    downloadFramesButton.innerHTML = 'Download Individual Frames';
+                    downloadFramesButton.onclick = () => {
+                        const zip = new JSZip();
+                        frames.forEach((frame, i) => {
+                            const base64Data = frame.replace(/^data:image\/png;base64,/, '');
+                            zip.file(`frame-${i + 1}.png`, base64Data, { base64: true });
+                        });
+                        
+                        zip.generateAsync({ type: 'blob' }).then(blob => {
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = 'dance-party-frames.zip';
+                            link.click();
+                        });
+                    };
+                    previewContainer.appendChild(downloadFramesButton);
+                });
+
+                // Start rendering the GIF
+                gif.render();
 
                 // Show preview
                 const discoSection = document.getElementById('disco-section');
